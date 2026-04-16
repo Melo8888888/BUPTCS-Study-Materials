@@ -3,6 +3,8 @@
 
 建议看看**期末心得**!
 
+ps:目前可能出现 GitHub 的 Web UI 渲染服务的缓存状态混乱的情况，前端 JS 渲染经常失败，显示 "Error loading page"，大家刷新一下就行。。。。
+
 资料来源：
 
 https://github.com/William-Seven/Collected-study-materials-from-BUPT/tree/main/CSAPP%E8%AE%A1%E5%9F%BA  北邮本科计算机资料
