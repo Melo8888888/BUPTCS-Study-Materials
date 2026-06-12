@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>登录 / 注册 - 智能充电桩调度计费系统</title>
+<link rel="stylesheet" href="common.css">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+}
+.login-wrap {
+    display: grid;
+    grid-template-columns: minmax(420px, 1fr) minmax(400px, 460px);
+    gap: 28px;
+    width: min(1180px, 100%);
+    align-items: stretch;
+}
+.hero-stage {
+    position: relative;
+    min-height: 520px;
+    border-radius: 22px;
+    overflow: hidden;
+    background: rgba(255,255,255,0.42);
+    -webkit-backdrop-filter: blur(38px) saturate(165%);
+    backdrop-filter:         blur(38px) saturate(165%);
+    box-shadow:
+        0 1.5px 1px rgba(255,255,255,0.85) inset,
+        0 -1px 1.5px rgba(155,138,163,0.08) inset,
+        0 16px 48px -12px rgba(110,90,80,0.22);
+    border: 1px solid transparent;
+}
+.hero-stage::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit;
+    pointer-events: none; padding: 1px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.22) 30%, rgba(199,184,161,0.20) 70%, rgba(255,255,255,0.70));
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.hero-stage::before {
+    content: ""; position: absolute; top: 1px; left: 22%; right: 22%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.95), transparent);
+    opacity: 0.7; z-index: 2; pointer-events: none;
+}
+.hero-pedestal {
+    position: absolute; bottom: 6%; left: 50%; transform: translateX(-50%);
+    width: 58%; height: 14%; border-radius: 50%;
+    background: radial-gradient(ellipse, rgba(135,167,179,0.30) 0%, transparent 65%);
+    filter: blur(8px); pointer-events: none;
+}
+.hero-stage model-viewer {
+    width: 100%; height: 100%; min-height: 520px;
+    background: transparent;
+    --poster-color: transparent;
+    position: relative; z-index: 1;
+}
+.hero-tag {
+    position: absolute; top: 22px; left: 22px; z-index: 3;
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 14px; border-radius: 999px;
+    background: rgba(255,255,255,0.66);
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.06em; color: var(--celadon-deep);
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), 0 4px 12px -4px rgba(135,167,179,0.3);
+}
+.hero-tag .pulse-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--celadon);
+    box-shadow: 0 0 8px var(--celadon);
+    animation: pulseLogin 1.6s ease-in-out infinite;
+}
+@keyframes pulseLogin {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+}
+.hero-credit {
+    position: absolute; right: 22px; bottom: 18px; z-index: 3;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px; color: rgba(46,46,46,0.5);
+    letter-spacing: 0.06em; text-align: right; line-height: 1.5;
+}
+.hero-credit b { color: var(--celadon-deep); font-weight: 600; }
+.hero-headline {
+    position: absolute; top: 70px; left: 28px; right: 28px; z-index: 3;
+    pointer-events: none;
+}
+.hero-headline h1 {
+    margin: 0 0 6px;
+    font-size: 28px; font-weight: 700;
+    letter-spacing: -0.022em; line-height: 1.1;
+    color: var(--text);
+}
+.hero-headline h1 .accent {
+    background: linear-gradient(135deg, var(--celadon) 0%, var(--violet-soft) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.hero-headline .sub {
+    color: var(--muted); font-size: 13px; max-width: 360px; line-height: 1.5;
+}
+.login-box {
+    width: 100%;
+    padding: 34px;
+    align-self: center;
+}
+.btn-block { width: 100%; height: 44px; margin-top: 10px; }
+@media (max-width: 940px) {
+    .login-wrap { grid-template-columns: 1fr; }
+    .hero-stage { min-height: 340px; }
+    .hero-stage model-viewer { min-height: 340px; }
+    .hero-headline { top: 60px; }
+}
+</style>
+</head>
+<body>
+
+<div class="login-wrap">
+  <div class="hero-stage">
+    <div class="hero-tag"><span class="pulse-dot"></span>EV CHARGING · OPS</div>
+    <div class="hero-headline">
+      <h1>充电桩调度<br><span class="accent">智能控制台</span></h1>
+      <div class="sub">5 桩 / N=10 / M=3 · 优先级 + 时间顺序双调度 · 实时计费 + WebSocket 推送</div>
+    </div>
+    <div class="hero-pedestal"></div>
+    <model-viewer
+      src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/CarConcept/glTF-Binary/CarConcept.glb"
+      alt="EV CarConcept"
+      camera-orbit="-30deg 75deg auto"
+      field-of-view="32deg"
+      auto-rotate auto-rotate-delay="0" rotation-per-second="20deg"
+      exposure="1.10"
+      shadow-intensity="0.9"
+      shadow-softness="0.9"
+      environment-image="neutral"
+      interaction-prompt="none"
+      disable-zoom>
+    </model-viewer>
+    <div class="hero-credit">KhronosGroup <b>CarConcept</b> · glTF 2.0<br>EV concept design · full PBR</div>
+  </div>
+
+  <div class="login-box">
+    <div class="login-logo">
+        <div class="icon-big">EV</div>
+        <div class="title">智能充电桩调度计费系统</div>
+        <div class="subtitle">登录 / 注册</div>
+    </div>
+
+    <div class="tabs" aria-label="登录或注册">
+        <button class="tab active" type="button" data-mode="login">登录</button>
+        <button class="tab" type="button" data-mode="register">注册新用户</button>
+    </div>
+
+    <form id="authForm">
+        <div class="form-row">
+            <label for="username">用户名</label>
+            <div class="form-ctl"><input id="username" class="input" maxlength="32" required></div>
+        </div>
+        <div class="form-row">
+            <label for="password">密码</label>
+            <div class="form-ctl"><input id="password" type="password" class="input" maxlength="64" required></div>
+        </div>
+        <div class="form-row register-only" style="display:none;">
+            <label>角色</label>
+            <div class="form-ctl role-radio">
+                <label><input type="radio" name="role" value="USER" checked> 车主</label>
+                <label><input type="radio" name="role" value="ADMIN"> 管理员</label>
+            </div>
+        </div>
+        <div class="form-row register-only" style="display:none;">
+            <label for="vehicleId">车辆编号</label>
+            <div class="form-ctl"><input id="vehicleId" class="input" maxlength="32" placeholder="车主必填，例如 V100"></div>
+        </div>
+        <div class="form-row register-only" style="display:none;">
+            <label for="phone">手机号</label>
+            <div class="form-ctl"><input id="phone" class="input" maxlength="20" placeholder="选填"></div>
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="submitBtn">登录</button>
+    </form>
+
+    <div id="msg" class="msg"></div>
+
+    <div class="hint">
+        新用户先在"注册新用户"中创建账号；车主须填写车辆编号，管理员不必填写。<br/>
+        默认本地服务地址为 <code>http://localhost:8080</code>。
+    </div>
+</div>
+
+<script src="common-auth.js"></script>
+<script>
+let mode = "login";
+const submitBtn = document.getElementById("submitBtn");
+const msgEl = document.getElementById("msg");
+const usernameEl = document.getElementById("username");
+const passwordEl = document.getElementById("password");
+const vehicleIdEl = document.getElementById("vehicleId");
+const phoneEl = document.getElementById("phone");
+
+function setMode(next) {
+    mode = next;
+    document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === mode));
+    document.querySelectorAll(".register-only").forEach(el => el.style.display = (mode === "register" ? "flex" : "none"));
+    submitBtn.textContent = (mode === "login" ? "登录" : "注册并登录");
+    showMsg("", "");
+}
+
+function showMsg(text, kind) {
+    msgEl.className = "msg" + (kind ? " " + kind : "");
+    msgEl.textContent = text || "";
+    msgEl.style.display = text ? "block" : "none";
+}
+
+document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => setMode(t.dataset.mode)));
+
+document.getElementById("authForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    submitBtn.disabled = true;
+    try {
+        let body, path;
+        if (mode === "register") {
+            const role = document.querySelector('input[name="role"]:checked').value;
+            body = {
+                username: usernameEl.value.trim(),
+                password: passwordEl.value,
+                vehicleId: (vehicleIdEl.value || "").trim() || null,
+                phone: (phoneEl.value || "").trim() || null,
+                role: role
+            };
+            path = "/api/auth/register";
+        } else {
+            body = { username: usernameEl.value.trim(), password: passwordEl.value };
+            path = "/api/auth/login";
+        }
+        const data = await EVAuth.api(path, { method: "POST", body: JSON.stringify(body) });
+        EVAuth.saveAuth(data);
+        showMsg("成功，正在跳转...", "ok");
+        const role = data.role;
+        setTimeout(() => {
+            location.href = role === "ADMIN" ? "4_admin_piles.html" : "1_charge_request.html";
+        }, 300);
+    } catch (err) {
+        showMsg(err && err.message ? err.message : String(err), "err");
+    } finally {
+        submitBtn.disabled = false;
+    }
+});
+
+// Pre-fill username if remembered
+const remembered = EVAuth.currentAuth();
+if (remembered.username) usernameEl.value = remembered.username;
+if (remembered.vehicleId) vehicleIdEl.value = remembered.vehicleId;
+
+setMode("login");
+</script>
+</body>
+</html>

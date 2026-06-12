@@ -1,0 +1,4090 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>等候队列 - 管理员</title>
+<link rel="stylesheet" href="common.css">
+<style>
+/* 让 common.css 的胶囊玻璃 nav 接管，不再覆盖 */
+
+.container {
+    width: min(1440px, calc(100% - 32px));
+}
+
+.queue-header {
+    display: grid;
+    grid-template-columns: 1.18fr repeat(3, minmax(0, 0.82fr));
+    gap: 14px;
+    margin-bottom: 18px;
+}
+
+.summary-panel {
+    min-height: 104px;
+    padding: 18px 20px;
+    border: 1px solid #dbe4ff;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #eef4ff 0%, #ffffff 72%);
+    box-shadow: var(--shadow);
+}
+
+.summary-panel .eyebrow {
+    color: #364fc7;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.summary-panel .headline {
+    margin-top: 8px;
+    font-size: 22px;
+    line-height: 1.3;
+    font-weight: 780;
+    overflow-wrap: anywhere;
+}
+
+.summary-panel .summary-meta {
+    margin-top: 8px;
+    color: #475569;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.ops-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 18px;
+    align-items: start;
+}
+
+.map-card {
+    overflow: hidden;
+}
+
+.map-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.capacity-chip {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    padding: 0 14px;
+    border: 1px solid rgba(135, 167, 179, 0.30);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    color: var(--celadon-deep);
+    font-size: 13px;
+    font-weight: 590;
+    letter-spacing: -0.005em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.config-control {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 590;
+    letter-spacing: -0.005em;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.8);
+}
+
+.config-control input,
+.config-control select {
+    width: 58px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    text-align: center;
+    color: var(--text);
+    font-weight: 700;
+    font-feature-settings: "tnum";
+    background: rgba(255,255,255,0.65);
+    /* Center the spinner buttons vertically */
+    appearance: textfield;
+    -moz-appearance: textfield;
+}
+
+.config-control select {
+    width: auto;
+    min-width: 118px;
+    padding: 0 8px;
+    text-align: left;
+    appearance: auto;
+    -moz-appearance: auto;
+}
+
+.strategy-control {
+    border-color: rgba(199, 123, 110, 0.34);
+    background: rgba(255, 247, 245, 0.78);
+}
+.config-control input::-webkit-inner-spin-button,
+.config-control input::-webkit-outer-spin-button {
+    opacity: 1;
+    height: 30px;
+    margin: 0;
+    transform: translateY(0);
+}
+
+.config-control input:focus {
+    border-color: var(--celadon);
+    outline: 3px solid rgba(135, 167, 179, 0.22);
+}
+
+.three-stage {
+    position: relative;
+    min-height: 800px;
+    padding-top: 104px;
+    margin-bottom: 18px;
+    overflow: hidden;
+    border: 1px solid #d8dee9;
+    border-radius: 8px;
+    background:
+        radial-gradient(circle at 18% 18%, rgba(81, 207, 102, 0.18), transparent 28%),
+        linear-gradient(180deg, #111827 0%, #1f2937 54%, #334155 100%);
+}
+
+.three-stage:not(.is-ready) {
+    min-height: 132px;
+    padding-top: 0;
+}
+
+.three-stage:not(.is-ready) canvas,
+.three-stage:not(.is-ready) .three-hud,
+.three-stage:not(.is-ready) .three-legend {
+    display: none;
+}
+
+.three-stage canvas {
+    width: 100%;
+    height: 696px;
+    display: block;
+}
+
+.three-hud {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    top: 16px;
+    width: auto;
+    padding: 14px 18px;
+    border: 1px solid rgba(183, 204, 212, 0.30);
+    border-radius: 14px;
+    background: rgba(20, 28, 40, 0.82);
+    color: #F5F2EB;
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    backdrop-filter: blur(14px) saturate(150%);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.10), 0 12px 32px -8px rgba(0,0,0,0.45);
+}
+
+.three-hud .meta {
+    max-width: 760px;
+}
+
+.three-fallback {
+    position: absolute;
+    inset: 104px 0 0;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    color: rgba(255, 255, 255, 0.72);
+    font-size: 13px;
+    text-align: center;
+    pointer-events: none;
+}
+
+.three-stage.is-ready .three-fallback {
+    display: none;
+}
+
+.three-stage:not(.is-ready) .three-fallback {
+    position: static;
+    min-height: 132px;
+    inset: auto;
+}
+
+.three-hud .kicker {
+    color: #B7CCD4;        /* 莫兰迪青瓷浅 */
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+.three-hud .title {
+    margin-top: 8px;
+    color: #FFFFFF !important;   /* 强制覆盖被全局 .title 污染 */
+    font-size: 18px;
+    line-height: 1.35;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+}
+
+.three-hud .meta {
+    margin-top: 8px;
+    color: rgba(245, 242, 235, 0.88);
+    font-size: 12.5px;
+    line-height: 1.6;
+    max-width: 760px;
+}
+
+.three-legend {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.legend-chip {
+    min-height: 28px;
+    padding: 0 10px;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.74);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+    backdrop-filter: blur(8px);
+}
+
+.legend-dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: #51cf66;
+    box-shadow: 0 0 0 4px rgba(81, 207, 102, 0.16);
+}
+
+.legend-dot.fast {
+    background: #4dabf7;
+    box-shadow: 0 0 0 4px rgba(77, 171, 247, 0.16);
+}
+
+.legend-dot.charge {
+    background: #8ce99a;
+    box-shadow: 0 0 0 4px rgba(140, 233, 154, 0.18);
+}
+
+.legend-dot.queue {
+    background: #93c5fd;
+    box-shadow: 0 0 0 4px rgba(147, 197, 253, 0.18);
+}
+
+.legend-dot.fault {
+    background: #ff6b6b;
+    box-shadow: 0 0 0 4px rgba(255, 107, 107, 0.18);
+}
+
+.station-map {
+    position: relative;
+    display: block;
+    min-height: var(--station-map-height, 760px);
+    margin-top: 14px;
+    overflow: hidden;
+    border: 1px solid #d8dee9;
+    border-radius: 8px;
+    background:
+        linear-gradient(90deg, rgba(255,255,255,0.55) 1px, transparent 1px),
+        linear-gradient(0deg, rgba(255,255,255,0.55) 1px, transparent 1px),
+        linear-gradient(180deg, #edf2f7 0%, #f8fafc 100%);
+    background-size: 34px 34px, 34px 34px, auto;
+}
+
+.station-map::before {
+    content: "";
+    position: absolute;
+    inset: 30px 34px;
+    border: 2px solid rgba(54, 79, 199, 0.18);
+    border-radius: 20px;
+    pointer-events: none;
+}
+
+.zone {
+    position: absolute;
+    border: 1px solid rgba(15, 23, 42, 0.10);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(3px);
+}
+
+.zone-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    color: #344054;
+    font-size: 13px;
+    font-weight: 760;
+}
+
+.charging-zone {
+    left: 48px;
+    right: 48px;
+    top: 44px;
+    height: var(--charging-zone-height, 330px);
+}
+
+.waiting-zone {
+    left: 48px;
+    right: 48px;
+    top: var(--waiting-zone-top, 486px);
+    bottom: auto;
+    height: var(--waiting-zone-height, 250px);
+}
+
+.redispatch-zone {
+    left: 48px;
+    right: 48px;
+    top: var(--redispatch-zone-top, 486px);
+    bottom: auto;
+    height: var(--redispatch-zone-height, 136px);
+    border-color: rgba(199, 123, 110, 0.32);
+    background: rgba(255, 247, 245, 0.82);
+}
+
+.redispatch-board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px;
+}
+
+.redispatch-lane {
+    min-height: 64px;
+    padding: 12px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.72);
+    border: 1px solid rgba(199, 123, 110, 0.24);
+}
+
+.drive-lane {
+    position: absolute;
+    left: 82px;
+    right: 82px;
+    top: var(--drive-lane-top, 400px);
+    height: 54px;
+    border-top: 2px dashed #98a2b3;
+    border-bottom: 2px dashed #98a2b3;
+}
+
+.drive-lane::before,
+.drive-lane::after {
+    position: absolute;
+    top: 14px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.drive-lane::before {
+    content: "入口";
+    left: -28px;
+}
+
+.drive-lane::after {
+    content: "出口";
+    right: -28px;
+}
+
+.route-arrow {
+    position: absolute;
+    left: 50%;
+    top: var(--route-arrow-top, 394px);
+    width: 0;
+    height: 0;
+    border-left: 13px solid transparent;
+    border-right: 13px solid transparent;
+    border-bottom: 24px solid #1c7ed6;
+    filter: drop-shadow(0 6px 12px rgba(28, 126, 214, 0.28));
+}
+
+.pile-board {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+
+.pile-bay {
+    position: relative;
+    min-height: 258px;
+    padding: 12px;
+    border: 1px solid #d0d5dd;
+    border-radius: 8px;
+    background: linear-gradient(180deg, #ffffff 0%, #f6f8fb 100%);
+}
+
+.pile-bay.is-fault {
+    border-color: #f1aeb5;
+    background: linear-gradient(180deg, #fff5f5 0%, #ffffff 100%);
+    animation: faultPulse 1.5s ease-in-out infinite;
+}
+
+.pile-bay.is-disabled {
+    border-color: #ffd43b;
+    background: linear-gradient(180deg, #fff9db 0%, #ffffff 100%);
+}
+
+.pile-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-size: 13px;
+    font-weight: 780;
+}
+
+.pile-head span:first-child {
+    white-space: nowrap;
+}
+
+.charger {
+    height: 48px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.charger-icon {
+    width: 34px;
+    height: 42px;
+    border-radius: 6px;
+    background: #1f2937;
+    position: relative;
+}
+
+.charger-icon::before {
+    content: "";
+    position: absolute;
+    left: 9px;
+    top: 8px;
+    width: 16px;
+    height: 18px;
+    border-radius: 3px;
+    background: #51cf66;
+}
+
+.pile-bay.is-fault .charger-icon::before {
+    background: #ff6b6b;
+}
+
+.charger-meta {
+    color: #667085;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.parking-slots {
+    display: grid;
+    gap: 9px;
+}
+
+.slot {
+    min-height: 44px;
+    padding: 7px 8px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: rgba(255,255,255,0.84);
+}
+
+.slot.is-current {
+    border-style: solid;
+    border-color: #51cf66;
+    background: #f4fce3;
+}
+
+.slot.is-waiting {
+    border-color: #9ec5fe;
+    background: #eff6ff;
+}
+
+.slot.is-extra {
+    animation: capacityPulse 1.5s ease-in-out 2;
+}
+
+.slot.is-full {
+    border-color: #f59f00;
+    background: #fff9db;
+}
+
+.slot-title {
+    display: flex;
+    justify-content: space-between;
+    gap: 6px;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 760;
+}
+
+.slot-sub {
+    margin-top: 3px;
+    color: #667085;
+    font-size: 11px;
+}
+
+.slot-sub.is-active {
+    color: #364fc7;
+    font-weight: 760;
+}
+
+.waiting-board {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 14px;
+}
+
+.capacity-strip {
+    margin: 0 14px 14px;
+    padding: 12px;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.74);
+}
+
+.capacity-strip-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 9px;
+    color: #344054;
+    font-size: 12px;
+    font-weight: 780;
+}
+
+.waiting-capacity-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(54px, 1fr));
+    gap: 7px;
+}
+
+.capacity-cell {
+    min-height: 34px;
+    padding: 5px 6px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 760;
+    text-align: center;
+}
+
+.capacity-cell.is-filled {
+    border-style: solid;
+    border-color: #60a5fa;
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.capacity-cell.is-new {
+    animation: capacityPulse 1.5s ease-in-out 2;
+}
+
+.waiting-lane {
+    min-height: 124px;
+    padding: 12px;
+    border-radius: 8px;
+    background: #f8fafc;
+    border: 1px solid #e5e8ef;
+}
+
+.lane-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    color: #344054;
+    font-size: 13px;
+    font-weight: 760;
+}
+
+.lane-cars {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.car-chip {
+    min-width: 112px;
+    padding: 8px 10px;
+    border: 1px solid #d0ebff;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+}
+
+.car-chip.is-active {
+    border-color: #364fc7;
+    box-shadow: 0 0 0 3px rgba(54, 79, 199, 0.12);
+}
+
+.car-chip.is-redispatch {
+    border-color: rgba(199, 123, 110, 0.42);
+    background: rgba(255, 247, 245, 0.94);
+}
+
+.car-chip.is-redispatch .chip-num {
+    color: var(--rust-text);
+}
+
+.chip-num {
+    color: #1864ab;
+    font-size: 14px;
+    font-weight: 780;
+}
+
+.chip-info {
+    margin-top: 3px;
+    color: #667085;
+    font-size: 11px;
+    line-height: 1.45;
+}
+
+.animated-car {
+    position: absolute;
+    left: 74px;
+    top: 414px;
+    width: 58px;
+    height: 30px;
+    border-radius: 16px 18px 14px 14px;
+    background: linear-gradient(90deg, #2f9e44 0%, #69db7c 100%);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    font-weight: 800;
+    box-shadow: 0 12px 24px rgba(47, 158, 68, 0.28);
+    transform-origin: 50% 50%;
+    z-index: 8;
+    /* 动画结束后默认隐藏，避免红色故障车残留遮挡桩位/沙盘信息 */
+    opacity: 0;
+    pointer-events: none;
+}
+
+.animated-car::before,
+.animated-car::after {
+    content: "";
+    position: absolute;
+    bottom: -3px;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #1f2937;
+}
+
+.animated-car::before {
+    left: 9px;
+}
+
+.animated-car::after {
+    right: 9px;
+}
+
+.animated-car.is-change {
+    background: linear-gradient(90deg, #1c7ed6 0%, #74c0fc 100%);
+    box-shadow: 0 12px 24px rgba(28, 126, 214, 0.28);
+}
+
+.animated-car.is-fault {
+    background: linear-gradient(90deg, #c92a2a 0%, #ff8787 100%);
+    box-shadow: 0 12px 24px rgba(201, 42, 42, 0.24);
+}
+
+.animated-car[data-motion="apply"] {
+    animation: driveApply 0.82s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.animated-car[data-motion="change"] {
+    animation: driveChange 0.82s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.animated-car[data-motion="fault"] {
+    animation: driveFault 0.82s cubic-bezier(.2,.8,.2,1) both;
+}
+
+.timeline-card {
+    position: static;
+}
+
+.timeline-card .card-title {
+    align-items: center;
+}
+
+.timeline-layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 0.78fr) minmax(0, 1.55fr);
+    gap: 16px;
+    align-items: start;
+}
+
+.event-now {
+    padding: 14px;
+    border: 1px solid #dbe4ff;
+    border-radius: 8px;
+    background: #f8faff;
+}
+
+.event-now .time {
+    color: #364fc7;
+    font-size: 13px;
+    font-weight: 780;
+}
+
+.event-now .event-name {
+    margin-top: 8px;
+    font-size: 18px;
+    font-weight: 780;
+}
+
+.event-now .event-desc {
+    margin-top: 8px;
+    color: #667085;
+    font-size: 13px;
+    line-height: 1.65;
+}
+
+.timeline {
+    max-height: 330px;
+    margin-top: 0;
+    padding-right: 6px;
+    overflow: auto;
+}
+
+.timeline-item {
+    width: 100%;
+    min-height: 46px;
+    margin-bottom: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--line-soft);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.62);
+    display: grid;
+    grid-template-columns: 56px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    color: var(--text);
+    cursor: pointer;
+    text-align: left;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+    transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+
+.timeline-item:hover {
+    border-color: rgba(135, 167, 179, 0.45);
+    background: rgba(255, 255, 255, 0.85);
+    transform: translateX(2px);
+}
+
+.timeline-item.is-active {
+    border-color: var(--celadon);
+    background: rgba(135, 167, 179, 0.14);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), 0 0 0 3px rgba(135,167,179,0.12);
+}
+
+.timeline-item .t {
+    color: var(--celadon-deep);
+    font-size: 12px;
+    font-weight: 700;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    letter-spacing: 0.02em;
+}
+
+.timeline-item .e {
+    font-size: 13.5px;
+    font-weight: 590;
+    color: var(--text);
+    letter-spacing: -0.005em;
+}
+
+.timeline-item .k {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: rgba(135, 167, 179, 0.12);
+}
+
+.table-wrap {
+    overflow-x: auto;
+}
+
+.detail-row {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin-top: 14px;
+}
+
+.timeline-card .detail-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.timeline-card .detail-row .info-card:nth-child(4) .value {
+    font-size: 16px !important;
+    line-height: 1.28;
+}
+
+.realtime-card {
+    margin-top: 18px;
+}
+
+.realtime-stream {
+    display: grid;
+    gap: 8px;
+    max-height: 220px;
+    overflow: auto;
+}
+
+.realtime-item {
+    padding: 9px 10px;
+    border: 1px solid #e5e8ef;
+    border-radius: 8px;
+    background: #fff;
+    color: #344054;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.realtime-item.is-latest {
+    border-color: #60a5fa;
+    background: #eff6ff;
+}
+
+.realtime-item .time {
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+@keyframes capacityPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(54, 79, 199, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(54, 79, 199, 0.14); }
+}
+
+@keyframes driveApply {
+    0%   { transform: translate3d(0, 0, 0) rotate(0deg); opacity: 0.35; }
+    15%  { opacity: 1; }
+    45%  { transform: translate3d(330px, 0, 0) rotate(0deg); opacity: 1; }
+    85%  { transform: translate3d(455px, 125px, 0) rotate(-6deg); opacity: 1; }
+    100% { transform: translate3d(455px, 125px, 0) rotate(-6deg); opacity: 0; }
+}
+
+@keyframes driveChange {
+    0%   { transform: translate3d(460px, 125px, 0) rotate(-6deg); opacity: 1; }
+    50%  { transform: translate3d(330px, 0, 0) rotate(0deg); opacity: 1; }
+    85%  { transform: translate3d(560px, -225px, 0) rotate(-90deg); opacity: 1; }
+    100% { transform: translate3d(560px, -225px, 0) rotate(-90deg); opacity: 0; }
+}
+
+@keyframes driveFault {
+    0%   { transform: translate3d(430px, -210px, 0) rotate(-90deg); opacity: 1; }
+    50%  { transform: translate3d(430px, -166px, 0) rotate(-90deg) scale(1.05); opacity: 1; }
+    85%  { transform: translate3d(430px, -210px, 0) rotate(-90deg); opacity: 1; }
+    100% { transform: translate3d(430px, -210px, 0) rotate(-90deg); opacity: 0; }
+}
+
+@keyframes faultPulse {
+    0%, 100% { box-shadow: 0 0 0 rgba(224, 49, 49, 0); }
+    50% { box-shadow: 0 0 0 4px rgba(224, 49, 49, 0.10); }
+}
+
+@media (max-width: 1060px) {
+    .queue-header,
+    .ops-grid,
+    .detail-row {
+        grid-template-columns: 1fr;
+    }
+
+    .timeline-card {
+        position: static;
+    }
+
+    .timeline-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .three-stage {
+        min-height: 700px;
+    }
+
+    .three-stage canvas {
+        height: 596px;
+    }
+
+    .pile-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .station-map {
+        min-height: var(--station-map-height, 920px);
+    }
+
+    .charging-zone {
+        height: var(--charging-zone-height, 610px);
+    }
+
+    .drive-lane,
+    .route-arrow {
+        top: var(--drive-lane-top, 680px);
+    }
+
+    .waiting-zone {
+        height: var(--waiting-zone-height, 250px);
+        top: var(--waiting-zone-top, 766px);
+    }
+}
+
+@media (max-width: 640px) {
+    .three-stage {
+        min-height: 560px;
+        padding-top: 132px;
+    }
+
+    .three-stage canvas {
+        height: 428px;
+    }
+
+    .three-hud {
+        top: 12px;
+        left: 12px;
+        right: 12px;
+        width: auto;
+    }
+
+    .three-fallback {
+        inset: 132px 0 0;
+    }
+
+    .three-legend {
+        left: 12px;
+        right: 12px;
+        justify-content: flex-start;
+    }
+
+    .station-map {
+        min-height: var(--station-map-height, 760px);
+        overflow: auto;
+    }
+
+    .charging-zone,
+    .waiting-zone {
+        left: 20px;
+        right: auto;
+        width: 700px;
+    }
+
+    .charging-zone {
+        height: var(--charging-zone-height, 330px);
+    }
+
+    .waiting-zone {
+        height: var(--waiting-zone-height, 250px);
+        top: var(--waiting-zone-top, 486px);
+    }
+
+    .drive-lane {
+        left: 54px;
+        right: auto;
+        width: 630px;
+        top: var(--drive-lane-top, 400px);
+    }
+
+    .route-arrow {
+        left: 360px;
+        top: var(--route-arrow-top, 394px);
+    }
+
+    .pile-board {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .waiting-board {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .timeline-item {
+        grid-template-columns: 46px 1fr;
+    }
+
+    .timeline-item .k {
+        grid-column: 2;
+    }
+}
+
+/* ─── 验收 xlsx 镜像表 ─── */
+.xlsx-mirror-card .card-title { gap: 10px; flex-wrap: wrap; }
+.xlsx-mirror-toolbar {
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+    font-size: 12px; color: var(--muted);
+}
+.xlsx-mirror-progress { font-weight: 700; color: #1c7ed6; }
+.xlsx-mirror-legend { display: inline-flex; gap: 10px; flex-wrap: wrap; }
+.xlsx-mirror-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.xlsx-mirror-legend i {
+    width: 10px; height: 10px; border-radius: 2px; display: inline-block;
+}
+.xlsx-mirror-legend .lg-active { background: #fff3bf; border: 1px solid #f59f00; }
+.xlsx-mirror-legend .lg-past   { background: #f1f3f5; border: 1px solid #ced4da; }
+.xlsx-mirror-legend .lg-future { background: #ffffff; border: 1px dashed #ced4da; }
+.xlsx-mirror-legend .lg-fault  { background: #ffe3e3; border: 1px solid #fa5252; }
+.xlsx-mirror-legend .lg-fast   { background: #e7f5ff; border: 1px solid #4dabf7; }
+.xlsx-mirror-legend .lg-slow   { background: #e6fcf5; border: 1px solid #51cf66; }
+
+.xlsx-mirror-wrap {
+    overflow: auto;
+    max-height: 540px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+}
+.xlsx-mirror-table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: 12.5px;
+    table-layout: fixed;
+    min-width: 920px;
+}
+.xlsx-mirror-table thead th {
+    position: sticky; top: 0;
+    background: #f8f9fa;
+    border-bottom: 2px solid #364fc7;
+    border-right: 1px solid var(--line);
+    padding: 8px 6px;
+    font-weight: 700;
+    text-align: center;
+    color: #1f2329;
+    z-index: 2;
+    line-height: 1.35;
+}
+.xlsx-mirror-table thead th:last-child { border-right: none; }
+.xlsx-mirror-table thead .sub { display: block; color: var(--muted); font-weight: 500; font-size: 11px; }
+.xlsx-mirror-table thead th.col-fast { background: #e7f5ff; }
+.xlsx-mirror-table thead th.col-slow { background: #e6fcf5; }
+.xlsx-mirror-table thead th.col-wait { background: #fff9db; }
+
+.xlsx-mirror-table tbody td {
+    padding: 5px 6px;
+    border-right: 1px solid #eef0f4;
+    border-bottom: 1px solid #eef0f4;
+    text-align: center;
+    line-height: 1.45;
+    vertical-align: middle;
+    word-break: break-all;
+    background: #fff;
+}
+.xlsx-mirror-table tbody td.col-time {
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    color: #364fc7;
+    background: #f8f9fa;
+    border-right: 2px solid #dbe4ff;
+}
+.xlsx-mirror-table tbody td.col-evt {
+    font-family: ui-monospace, "SF Mono", Consolas, monospace;
+    font-size: 12px;
+    color: #1f2329;
+    background: #fcfcfd;
+    border-right: 2px solid #dbe4ff;
+}
+.xlsx-mirror-table tbody td.col-wait { background: #fffdf5; text-align: left; padding-left: 10px; }
+
+.xlsx-mirror-table tbody tr.row-main td { border-top: 1.5px solid #c1c8d4; }
+.xlsx-mirror-table tbody tr.row-main:first-child td { border-top: none; }
+.xlsx-mirror-table tbody tr.row-active td { background: #fff9db; }
+.xlsx-mirror-table tbody tr.row-active td.col-time { background: #fff3bf; color: #c92a2a; }
+.xlsx-mirror-table tbody tr.row-past   td { background: #f8f9fa; }
+.xlsx-mirror-table tbody tr.row-past   td.col-time { background: #eef0f4; color: #495057; }
+.xlsx-mirror-table tbody tr.row-future td { color: #adb5bd; }
+.xlsx-mirror-table tbody tr.row-future td.col-evt { color: #495057; }
+.xlsx-mirror-table tbody tr.row-future td.col-wait { color: #adb5bd; }
+
+.xlsx-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.xlsx-cell.empty { color: #ced4da; }
+.xlsx-cell .veh { font-weight: 700; color: #1f2329; }
+.xlsx-cell .veh.fast { color: #1864ab; }
+.xlsx-cell .veh.slow { color: #2b8a3e; }
+.xlsx-cell .kv  { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.xlsx-cell .badge {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 10.5px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+.xlsx-cell .badge.fault   { background: #ffe3e3; color: #c92a2a; }
+.xlsx-cell .badge.idle    { background: #f1f3f5; color: #495057; }
+.xlsx-cell .badge.queue   { background: #e7f5ff; color: #1864ab; }
+.xlsx-mirror-table tbody td.is-fault { background: #ffe3e3 !important; }
+.xlsx-mirror-table tbody td.is-current-vehicle { box-shadow: inset 0 0 0 2px #f59f00; }
+.xlsx-waiting-row {
+    display: flex; flex-wrap: wrap; gap: 4px;
+    justify-content: flex-start;
+}
+.xlsx-waiting-chip {
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    border: 1px solid #dbe4ff;
+    background: #f8f9fa;
+}
+.xlsx-waiting-chip.fast { border-color: #4dabf7; background: #e7f5ff; color: #1864ab; }
+.xlsx-waiting-chip.slow { border-color: #51cf66; background: #e6fcf5; color: #2b8a3e; }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+    <div class="logo">
+        <span class="icon">EV</span>
+        智能充电桩调度计费系统 · 管理控制台
+    </div>
+    <div class="menu">
+        <a href="4_admin_piles.html">充电桩监控</a>
+        <a href="#" class="active">等候队列</a>
+        <a href="6_admin_report.html">报表管理</a>
+        <a href="7_cinema_3d.html">院线 3D 视图 →</a>
+    </div>
+    <div class="user">
+        <div class="avatar">管</div>
+        <span>管理员 · 徐工</span>
+    </div>
+</nav>
+
+<div class="container">
+    <h1 class="page-title">队列总览</h1>
+
+    <div class="queue-header">
+        <div class="summary-panel">
+            <div class="eyebrow">验收参数同步</div>
+            <div class="headline" id="stationConfigHeadline">5 桩 · 等候区 N=10 · 桩内 M=3</div>
+            <div class="summary-meta" id="stationConfigMeta">快充 3 / 慢充 2 · 30/10 度每小时 · 车位图与后端配置同步</div>
+        </div>
+        <div class="info-card">
+            <div class="label">快充桩</div>
+            <div class="value">3<span class="unit">个 · 30 度/小时</span></div>
+        </div>
+        <div class="info-card">
+            <div class="label">慢充桩</div>
+            <div class="value">2<span class="unit">个 · 10 度/小时</span></div>
+        </div>
+        <div class="info-card">
+            <div class="label">当前事件</div>
+            <div class="value" id="activeEventValue">10:50<span class="unit">F1 故障</span></div>
+        </div>
+    </div>
+
+    <div class="ops-grid">
+        <section class="card map-card">
+            <div class="card-title">
+                <span>俯视调度沙盘</span>
+                <div class="map-actions">
+                    <span class="capacity-chip" id="waitingCapacityChip" title="等候区最大车位容量 N">N=10 等候区</span>
+                    <span class="capacity-chip" id="pileCapacityChip" title="每个充电桩总车位 M，含 1 个充电位和排队位">M=3 桩内车位</span>
+                    <label class="config-control" title="修改等候区最大容量 N">N <input id="waitingCapacityInput" type="number" min="0" max="99" step="1" value="10"></label>
+                    <label class="config-control" title="修改每个充电桩总车位 M">M <input id="pileCapacityInput" type="number" min="1" max="8" step="1" value="3"></label>
+                    <label class="config-control" title="快充桩数量（仅在所有队列清空时可改）">快充桩 <input id="fastPileCountInput" type="number" min="0" max="20" step="1" value="3"></label>
+                    <label class="config-control" title="慢充桩数量（仅在所有队列清空时可改）">慢充桩 <input id="slowPileCountInput" type="number" min="0" max="20" step="1" value="2"></label>
+                    <label class="config-control strategy-control" title="故障事件 B 的重调度策略">故障策略
+                        <select id="faultStrategySelect">
+                            <option value="TIME_ORDER">策略B · 时间顺序</option>
+                            <option value="PRIORITY">策略A · 优先级</option>
+                        </select>
+                    </label>
+                    <button class="btn btn-default" id="saveConfigBtn">应用参数</button>
+                    <button class="btn btn-primary" id="playBtn">播放回放</button>
+                    <button class="btn btn-default" id="stepBtn">下一事件</button>
+                    <button class="btn btn-default" id="advance1130Btn" title="先回放到 10:50，再推进到 T1 恢复后的状态">到 11:30</button>
+                    <button class="btn btn-default" id="advance1250Btn" title="先回放到 10:50，再推进到 F1 恢复后的状态">到 12:50</button>
+                    <button class="btn btn-default" id="advance1850Btn" title="先回放到 10:50，再推进到最新 xlsx 的最终完成状态">到 14:45</button>
+                    <button class="btn btn-default" id="resetBtn">重置</button>
+                </div>
+            </div>
+
+            <div class="three-stage" aria-label="三维充电站调度沙盘">
+                <canvas id="threeDispatchCanvas"></canvas>
+                <div class="three-fallback">正在加载 Three.js 3D 沙盘。若离线打开页面，二维沙盘和验收时间轴仍可正常展示。</div>
+                <div class="three-hud">
+                    <div class="kicker">Three.js 3D 调度视图</div>
+                    <div class="title" id="threeHudTitle">10:50 · F1 故障重调度</div>
+                    <div class="meta" id="threeHudMeta">低模车辆沿验收事件路径移动，桩位灯光同步显示快充、慢充、故障和重调度状态。</div>
+                </div>
+                <div class="three-legend" aria-hidden="true">
+                    <span class="legend-chip"><span class="legend-dot charge"></span>充电位</span>
+                    <span class="legend-chip"><span class="legend-dot queue"></span>排队位 Q1/Q2</span>
+                    <span class="legend-chip"><span class="legend-dot fault"></span>故障重调度</span>
+                </div>
+            </div>
+
+            <div class="station-map" aria-label="充电站俯视调度沙盘">
+                <div class="zone charging-zone">
+                    <div class="zone-title">
+                        <span>充电区</span>
+                        <span class="tag tag-info" id="pileZoneCapacityTag">每桩 M=3：1 个充电位 + 2 个排队位</span>
+                    </div>
+                    <div class="pile-board" id="pileBoard"></div>
+                </div>
+
+                <div class="drive-lane"></div>
+                <div class="route-arrow"></div>
+
+                <div class="zone redispatch-zone">
+                    <div class="zone-title">
+                        <span>故障重调度队列</span>
+                        <span class="tag tag-danger" id="redispatchCount">0 辆 · 不占普通等候区</span>
+                    </div>
+                    <div class="redispatch-board">
+                        <div class="redispatch-lane">
+                            <div class="lane-title">
+                                <span>快充故障重调度 F</span>
+                                <span id="redispatchFastCount">0 辆</span>
+                            </div>
+                            <div class="lane-cars" id="redispatchFastQueue"></div>
+                        </div>
+                        <div class="redispatch-lane">
+                            <div class="lane-title">
+                                <span>慢充故障重调度 T</span>
+                                <span id="redispatchSlowCount">0 辆</span>
+                            </div>
+                            <div class="lane-cars" id="redispatchSlowQueue"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="zone waiting-zone">
+                    <div class="zone-title">
+                        <span>等候区</span>
+                        <span class="tag tag-info" id="waitingZoneCapacityTag">最大容量 N = 10</span>
+                    </div>
+                    <div class="waiting-board">
+                        <div class="waiting-lane">
+                            <div class="lane-title">
+                                <span>快充等候队列 F</span>
+                                <span id="fastCount">0 辆</span>
+                            </div>
+                            <div class="lane-cars" id="fastQueue"></div>
+                        </div>
+                        <div class="waiting-lane">
+                            <div class="lane-title">
+                                <span>慢充等候队列 T</span>
+                                <span id="slowCount">0 辆</span>
+                            </div>
+                            <div class="lane-cars" id="slowQueue"></div>
+                        </div>
+                    </div>
+                    <div class="capacity-strip">
+                        <div class="capacity-strip-head">
+                            <span>等候区容量格 N</span>
+                            <span id="waitingCapacityUsage">0 / 10</span>
+                        </div>
+                        <div class="waiting-capacity-grid" id="waitingCapacityGrid"></div>
+                    </div>
+                </div>
+
+                <div class="animated-car" id="animatedCar" data-motion="fault">V20</div>
+            </div>
+        </section>
+
+        <aside class="card timeline-card">
+            <div class="card-title">
+                <span>验收事件时间轴</span>
+                <span class="tag tag-warning">策略B · 时间顺序故障调度</span>
+            </div>
+            <div class="timeline-layout">
+                <div>
+                    <div class="event-now">
+                        <div class="time" id="eventTime">10:50</div>
+                        <div class="event-name" id="eventName">快充桩 F1 故障</div>
+                        <div class="event-desc" id="eventDesc">故障持续 120 分钟，暂停故障桩叫号，按时间顺序重调度。</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="info-card">
+                            <div class="label">已输入事件</div>
+                            <div class="value" id="eventIndex">32<span class="unit">/ 32</span></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="label">等候区占用</div>
+                            <div class="value">7<span class="unit">/ 10</span></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="label">故障桩</div>
+                            <div class="value" style="color:var(--rust-text);">2<span class="unit">个</span></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="label">调度策略</div>
+                            <div class="value" style="font-size:18px;">最短完成时长</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="timeline" id="timeline"></div>
+            </div>
+        </aside>
+
+        <aside class="card realtime-card">
+            <div class="card-title">
+                <span>实时事件流</span>
+                <span class="tag tag-info">不写入验收时间轴</span>
+            </div>
+            <div class="realtime-stream" id="realtimeStream">
+                <div class="realtime-item is-latest">
+                    <span class="time">等待</span> · 真实申请、M/N 修改、故障恢复会在这里显示。
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <div class="card">
+        <div class="card-title">
+            <span>等候服务车辆详情</span>
+            <span class="tag tag-info">与沙盘同一状态快照</span>
+        </div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>区域</th>
+                        <th>充电桩/队列</th>
+                        <th>用户 ID</th>
+                        <th>排队号</th>
+                        <th>电池总容量</th>
+                        <th>请求充电量</th>
+                        <th>排队时长</th>
+                        <th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="vehicleRows"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card xlsx-mirror-card">
+        <div class="card-title">
+            <span>验收用例快照表（xlsx 第一张表 · 实时填充）</span>
+            <div class="xlsx-mirror-toolbar">
+                <span class="tag tag-info">列：时刻 / 事件 / 快充1-3 / 慢充1-2 / 等候区</span>
+                <span class="xlsx-mirror-progress" id="xlsxMirrorProgress">进度 0 / 33</span>
+                <span class="xlsx-mirror-legend">
+                    <span><i class="lg-active"></i>当前事件</span>
+                    <span><i class="lg-past"></i>已发生（自动留存）</span>
+                    <span><i class="lg-future"></i>未触发</span>
+                    <span><i class="lg-fault"></i>故障</span>
+                    <span><i class="lg-fast"></i>快充</span>
+                    <span><i class="lg-slow"></i>慢充</span>
+                </span>
+            </div>
+        </div>
+        <div class="xlsx-mirror-wrap" id="xlsxMirrorWrap">
+            <table class="xlsx-mirror-table" id="xlsxMirrorTable">
+                <thead><tr id="xlsxMirrorHead"></tr></thead>
+                <tbody id="xlsxMirrorBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+const events = [
+    ["06:00", "A", "V1", "T", "40"], ["06:05", "A", "V2", "T", "30"],
+    ["06:10", "A", "V3", "F", "60"], ["06:20", "A", "V2", "O", "0"],
+    ["06:25", "A", "V4", "T", "20"], ["06:30", "A", "V5", "T", "20"],
+    ["06:40", "A", "V6", "T", "20"], ["06:50", "A", "V7", "T", "10"],
+    ["07:00", "A", "V8", "F", "90"], ["07:10", "A", "V9", "F", "30"],
+    ["07:15", "A", "V10", "T", "10"], ["07:20", "A", "V11", "F", "60"],
+    ["07:25", "A", "V12", "T", "10"], ["07:30", "A", "V13", "T", "7.5"],
+    ["07:35", "A", "V14", "F", "75"], ["07:40", "A", "V15", "F", "45"],
+    ["08:00", "A", "V16", "T", "5"], ["08:20", "A", "V17", "T", "15"],
+    ["08:30", "A", "V18", "T", "20"], ["08:35", "A", "V19", "T", "25"],
+    ["09:00", "A", "V20", "F", "30"], ["09:10", "A", "V7", "O", "0"],
+    ["09:20", "A", "V11", "O", "0"], ["09:30", "A", "V18", "O", "0"],
+    ["09:35", "A", "V20", "O", "0"], ["09:50", "A", "V21", "F", "30"],
+    ["10:00", "A", "V22", "T", "10"], ["10:05", "C", "V19", "F", "25"],
+    ["10:10", "C", "V21", "F", "10"], ["10:20", "C", "V22", "F", "10"],
+    ["10:30", "B", "T1", "O", "60"], ["10:50", "B", "F1", "O", "120"]
+];
+
+const piles = [
+    { id: "F1", type: "快充", power: 30, state: "fault", current: "V8", queue: ["V19", "V21"], note: "10:50 故障 120 分钟" },
+    { id: "F2", type: "快充", power: 30, state: "work", current: "V14", queue: ["V15", "V22"], note: "预计 36 分钟后空位" },
+    { id: "F3", type: "快充", power: 30, state: "work", current: "V9", queue: [], note: "可接收下一辆快充车" },
+    { id: "T1", type: "慢充", power: 10, state: "fault", current: "V5", queue: ["V6", "V10"], note: "10:30 故障 60 分钟" },
+    { id: "T2", type: "慢充", power: 10, state: "work", current: "V12", queue: ["V13", "V16"], note: "慢充队列正常" }
+];
+
+const waitingFast = [
+    { id: "V3", queue: "F1", amount: "60", wait: "280 分钟" },
+    { id: "V21", queue: "F10", amount: "10", wait: "40 分钟" },
+    { id: "V22", queue: "F11", amount: "10", wait: "30 分钟" }
+];
+
+const waitingSlow = [
+    { id: "V1", queue: "T1", amount: "40", wait: "300 分钟" },
+    { id: "V4", queue: "T3", amount: "20", wait: "250 分钟" },
+    { id: "V17", queue: "T9", amount: "15", wait: "120 分钟" },
+    { id: "V19", queue: "F9", amount: "25", wait: "已改快充" }
+];
+
+const vehicleDetails = [
+    ["充电区", "F1", "V8", "F3", "80 度", "90 度", "230 分钟", "故障中断"],
+    ["桩内排队", "F1", "V19", "F9", "70 度", "25 度", "135 分钟", "时间顺序重调度"],
+    ["桩内排队", "F1", "V21", "F10", "60 度", "10 度", "60 分钟", "时间顺序重调度"],
+    ["充电区", "F2", "V14", "F6", "90 度", "75 度", "195 分钟", "充电中"],
+    ["桩内排队", "F2", "V15", "F7", "70 度", "45 度", "190 分钟", "排队中"],
+    ["充电区", "T1", "V5", "T4", "50 度", "20 度", "260 分钟", "故障中断"],
+    ["桩内排队", "T1", "V6", "T5", "50 度", "20 度", "250 分钟", "时间顺序重调度"],
+    ["等候区", "F 队列", "V22", "F11", "60 度", "10 度", "30 分钟", "等候"]
+];
+
+window.dispatchEvents = events;
+window.dispatchPiles = piles;
+window.dispatchWaitingFast = waitingFast;
+window.dispatchWaitingSlow = waitingSlow;
+
+let activeIndex = events.length - 1;
+let timer = null;
+
+const pileBoard = document.getElementById("pileBoard");
+const fastQueue = document.getElementById("fastQueue");
+const slowQueue = document.getElementById("slowQueue");
+const timeline = document.getElementById("timeline");
+const animatedCar = document.getElementById("animatedCar");
+
+function eventLabel(evt) {
+    if (evt[1] === "R") return evt[2];
+    if (evt[1] === "A" && evt[4] === "0") return `${evt[2]} 取消充电`;
+    if (evt[1] === "A") return `${evt[2]} 申请${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+    if (evt[1] === "C") return `${evt[2]} 改为${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+    return `${evt[2]} 充电桩故障 ${evt[4]} 分钟`;
+}
+
+function eventDesc(evt) {
+    if (evt[1] === "R") return "10:50 后状态已推进，可查看故障恢复、重调度和最终详单。";
+    if (evt[1] === "A" && evt[4] === "0") return "车辆从等待或桩内队列移出，后续车辆等待时长重新计算。";
+    if (evt[1] === "A") return "车辆进入对应模式等候队列；若充电区存在空位，系统可触发叫号和最短完成时长选桩。";
+    if (evt[1] === "C") return "等候区车辆修改请求后重算排队关系；改变模式时重新生成对应 F/T 排队号。";
+    return "暂停等候区叫号，先处理故障桩队列；本次故障前已充电量生成一条详单。";
+}
+
+function eventMotion(evt) {
+    if (evt[1] === "R") return "apply";
+    if (evt[1] === "C") return "change";
+    if (evt[1] === "B") return "fault";
+    return "apply";
+}
+
+function renderPiles(activeEvent) {
+    pileBoard.innerHTML = piles.map((pile) => {
+        const isActiveFault = activeEvent[1] === "B" && activeEvent[2] === pile.id;
+        const classes = ["pile-bay"];
+        if (pile.state === "fault" || isActiveFault) classes.push("is-fault");
+        const queueSlots = [pile.current, ...pile.queue];
+        const slotHtml = [0, 1, 2].map((slotIndex) => {
+            const vehicle = queueSlots[slotIndex];
+            const stateClass = slotIndex === 0 ? "is-current" : "is-waiting";
+            const title = slotIndex === 0 ? "充电位" : `排队位 ${slotIndex}`;
+            if (!vehicle) {
+                return `<div class="slot"><div class="slot-title"><span>${title}</span><span>空</span></div><div class="slot-sub">等待叫号</div></div>`;
+            }
+            const active = activeEvent[2] === vehicle ? " is-active" : "";
+            return `<div class="slot ${stateClass}"><div class="slot-title"><span>${title}</span><span>${vehicle}</span></div><div class="slot-sub${active}">${slotIndex === 0 ? "正在充电" : "桩内排队"} · ${pile.type}</div></div>`;
+        }).join("");
+        return `
+            <div class="${classes.join(" ")}">
+                <div class="pile-head">
+                    <span>${pile.id} · ${pile.type}</span>
+                    <span class="tag ${pile.state === "fault" || isActiveFault ? "tag-danger" : "tag-success"}">${pile.state === "fault" || isActiveFault ? "故障" : "工作中"}</span>
+                </div>
+                <div class="charger">
+                    <div class="charger-icon"></div>
+                    <div class="charger-meta">${pile.power} 度/小时<br>${pile.note}</div>
+                </div>
+                <div class="parking-slots">${slotHtml}</div>
+            </div>`;
+    }).join("");
+}
+
+function renderQueue(container, list, activeEvent) {
+    container.innerHTML = list.map((car) => `
+        <div class="car-chip ${activeEvent[2] === car.id ? "is-active" : ""}">
+            <div class="chip-num">${car.queue} · ${car.id}</div>
+            <div class="chip-info">请求 ${car.amount} 度<br>${car.wait}</div>
+        </div>
+    `).join("");
+}
+
+function renderTimeline() {
+    timeline.innerHTML = events.map((evt, index) => `
+        <button class="timeline-item ${index === activeIndex ? "is-active" : ""}" data-index="${index}">
+            <span class="t">${evt[0]}</span>
+            <span class="e">${eventLabel(evt)}</span>
+            <span class="k">${evt[1]}</span>
+        </button>
+    `).join("");
+}
+
+function renderVehicleRows() {
+    document.getElementById("vehicleRows").innerHTML = vehicleDetails.map((row) => {
+        const tagClass = row[7].includes("故障") ? "tag-danger" : row[7].includes("调度") ? "tag-warning" : row[7].includes("充电") ? "tag-success" : "tag-info";
+        return `<tr>
+            <td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td>
+            <td>${row[4]}</td><td>${row[5]}</td><td>${row[6]}</td><td><span class="tag ${tagClass}">${row[7]}</span></td>
+        </tr>`;
+    }).join("");
+}
+
+function renderActive(index) {
+    activeIndex = index;
+    const evt = events[activeIndex];
+    document.getElementById("eventTime").textContent = evt[0];
+    document.getElementById("eventName").textContent = eventLabel(evt);
+    document.getElementById("eventDesc").textContent = eventDesc(evt);
+    document.getElementById("eventIndex").innerHTML = `${activeIndex + 1}<span class="unit">/ ${events.length}</span>`;
+    document.getElementById("activeEventValue").innerHTML = `${evt[0]}<span class="unit">${eventLabel(evt)}</span>`;
+
+    renderPiles(evt);
+    renderQueue(fastQueue, waitingFast, evt);
+    renderQueue(slowQueue, waitingSlow, evt);
+    renderTimeline();
+
+    document.getElementById("fastCount").textContent = `${waitingFast.length} 辆`;
+    document.getElementById("slowCount").textContent = `${waitingSlow.length} 辆`;
+
+    animatedCar.textContent = evt[2];
+    animatedCar.className = `animated-car is-${eventMotion(evt)}`;
+    animatedCar.removeAttribute("data-motion");
+    void animatedCar.offsetWidth;
+    animatedCar.setAttribute("data-motion", eventMotion(evt));
+
+    if (window.updateThreeDispatchYard) {
+        window.updateThreeDispatchYard(evt, activeIndex);
+    }
+}
+
+function stopPlayback() {
+    if (timer) window.clearInterval(timer);
+    timer = null;
+    document.getElementById("playBtn").textContent = "播放回放";
+}
+
+document.getElementById("playBtn").addEventListener("click", () => {
+    if (timer) {
+        stopPlayback();
+        return;
+    }
+    document.getElementById("playBtn").textContent = "暂停回放";
+    timer = window.setInterval(() => {
+        const next = activeIndex >= events.length - 1 ? 0 : activeIndex + 1;
+        renderActive(next);
+    }, 950);
+});
+
+document.getElementById("stepBtn").addEventListener("click", () => {
+    stopPlayback();
+    renderActive(activeIndex >= events.length - 1 ? 0 : activeIndex + 1);
+});
+
+document.getElementById("resetBtn").addEventListener("click", () => {
+    stopPlayback();
+    renderActive(events.length - 1);
+});
+
+timeline.addEventListener("click", (event) => {
+    const item = event.target.closest(".timeline-item");
+    if (!item) return;
+    stopPlayback();
+    renderActive(Number(item.dataset.index));
+});
+
+renderVehicleRows();
+renderActive(activeIndex);
+</script>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect("ADMIN")) { throw new Error("admin required"); }
+(() => {
+    const API_BASE = EVAuth.apiBase();
+    const DEFAULT_FAULT_STRATEGY = "TIME_ORDER";
+    const FAULT_STRATEGY_LABELS = {
+        TIME_ORDER: "策略B · 时间顺序",
+        PRIORITY: "策略A · 优先级"
+    };
+    let faultStrategy = normalizeFaultStrategy(
+        new URLSearchParams(location.search).get("strategy")
+        || localStorage.getItem("evchargeFaultStrategy")
+        || DEFAULT_FAULT_STRATEGY
+    );
+    const apiEvents = [
+        ["06:00", "A", "V1", "T", "40"], ["06:05", "A", "V2", "T", "30"],
+        ["06:10", "A", "V3", "F", "60"], ["06:20", "A", "V2", "O", "0"],
+        ["06:25", "A", "V4", "T", "20"], ["06:30", "A", "V5", "T", "20"],
+        ["06:40", "A", "V6", "T", "20"], ["06:50", "A", "V7", "T", "10"],
+        ["07:00", "A", "V8", "F", "90"], ["07:10", "A", "V9", "F", "30"],
+        ["07:15", "A", "V10", "T", "10"], ["07:20", "A", "V11", "F", "60"],
+        ["07:25", "A", "V12", "T", "10"], ["07:30", "A", "V13", "T", "7.5"],
+        ["07:35", "A", "V14", "F", "75"], ["07:40", "A", "V15", "F", "45"],
+        ["08:00", "A", "V16", "T", "5"], ["08:20", "A", "V17", "T", "15"],
+        ["08:30", "A", "V18", "T", "20"], ["08:35", "A", "V19", "T", "25"],
+        ["09:00", "A", "V20", "F", "30"], ["09:10", "A", "V7", "O", "0"],
+        ["09:20", "A", "V11", "O", "0"], ["09:30", "A", "V18", "O", "0"],
+        ["09:35", "A", "V20", "O", "0"], ["09:50", "A", "V21", "F", "30"],
+        ["10:00", "A", "V22", "T", "10"], ["10:05", "C", "V19", "F", "25"],
+        ["10:10", "C", "V21", "F", "10"], ["10:20", "C", "V22", "F", "10"],
+        ["10:30", "B", "T1", "O", "60"], ["10:50", "B", "F1", "O", "120"]
+    ];
+    const postXlsxEvents = [
+        ["11:25", "R", "自动结算：V12完成，V6进入T2", "O", "0"],
+        ["11:30", "R", "T1故障恢复；V15/V19完成", "O", "0"],
+        ["12:30", "R", "自动结算：V10完成，V13进入T1", "O", "0"],
+        ["12:50", "R", "F1故障恢复", "O", "0"],
+        ["12:55", "R", "自动结算：V6完成，V16进入T2", "O", "0"],
+        ["13:15", "R", "自动结算：V13完成，V17进入T1", "O", "0"],
+        ["13:25", "R", "自动结算：V16完成", "O", "0"],
+        ["14:45", "R", "自动结算：V17完成，全部完成", "O", "0"]
+    ];
+    const xlsxTimelineEvents = [...apiEvents, ...postXlsxEvents];
+
+    let snapshot = null;
+    let previousSnapshot = null;
+    let activeEventIndex = -1;
+    let activePostIndex = -1;
+    let playing = false;
+    let playBusy = false;
+    let playbackTimer = null;
+    let postEvent = null;
+    let stationConfig = {
+        waitingCapacity: 10,
+        pileSlotCapacity: 3,
+        fastPileCount: 3,
+        slowPileCount: 2,
+        fastPowerKw: 30,
+        slowPowerKw: 10
+    };
+
+    // 验收 xlsx 镜像表：保留每个事件触发瞬间的 snapshot，供已发生事件回查
+    const xlsxFilledSnapshots = new Map();
+    const xlsxPostSnapshots = new Map();
+
+    window.dispatchEvents = apiEvents;
+    // Expose the current stationConfig to the Three.js module script (different scope).
+    window.getStationConfig = () => stationConfig;
+
+    const el = {
+        play: replaceControl("playBtn"),
+        step: replaceControl("stepBtn"),
+        advance1130: replaceControl("advance1130Btn"),
+        advance1250: replaceControl("advance1250Btn"),
+        advance1850: replaceControl("advance1850Btn"),
+        reset: replaceControl("resetBtn"),
+        timeline: replaceControl("timeline"),
+        pileBoard: document.getElementById("pileBoard"),
+        fastQueue: document.getElementById("fastQueue"),
+        slowQueue: document.getElementById("slowQueue"),
+        redispatchFastQueue: document.getElementById("redispatchFastQueue"),
+        redispatchSlowQueue: document.getElementById("redispatchSlowQueue"),
+        fastCount: document.getElementById("fastCount"),
+        slowCount: document.getElementById("slowCount"),
+        redispatchFastCount: document.getElementById("redispatchFastCount"),
+        redispatchSlowCount: document.getElementById("redispatchSlowCount"),
+        redispatchCount: document.getElementById("redispatchCount"),
+        waitingCapacityGrid: document.getElementById("waitingCapacityGrid"),
+        waitingCapacityUsage: document.getElementById("waitingCapacityUsage"),
+        realtimeStream: document.getElementById("realtimeStream"),
+        vehicleRows: document.getElementById("vehicleRows"),
+        eventTime: document.getElementById("eventTime"),
+        eventName: document.getElementById("eventName"),
+        eventDesc: document.getElementById("eventDesc"),
+        eventIndex: document.getElementById("eventIndex"),
+        activeEventValue: document.getElementById("activeEventValue"),
+        animatedCar: document.getElementById("animatedCar"),
+        hudTitle: document.getElementById("threeHudTitle"),
+        hudMeta: document.getElementById("threeHudMeta"),
+        waitingCapacityInput: document.getElementById("waitingCapacityInput"),
+        pileCapacityInput: document.getElementById("pileCapacityInput"),
+        fastPileCountInput: document.getElementById("fastPileCountInput"),
+        slowPileCountInput: document.getElementById("slowPileCountInput"),
+        faultStrategySelect: document.getElementById("faultStrategySelect"),
+        saveConfig: replaceControl("saveConfigBtn"),
+        wsStatus: createWsStatus()
+    };
+    const realtimeEvents = [];
+    let previousStationConfig = { ...stationConfig };
+
+    el.play.textContent = "播放回放";
+    el.step.textContent = "下一事件";
+    el.advance1130.textContent = "到 11:30";
+    el.advance1250.textContent = "到 12:50";
+    el.advance1850.textContent = "到 14:45";
+    el.reset.textContent = "重置";
+
+    el.play.addEventListener("click", togglePlayback);
+    el.step.addEventListener("click", stepForward);
+    el.advance1130.addEventListener("click", () => advanceAfterLastEvent("11:30", "T1 故障恢复"));
+    el.advance1250.addEventListener("click", () => advanceAfterLastEvent("12:50", "F1 故障恢复"));
+    el.advance1850.addEventListener("click", () => advanceAfterLastEvent("14:45", "全部订单完成"));
+    el.reset.addEventListener("click", resetBackend);
+    el.saveConfig.addEventListener("click", updateStationConfig);
+    if (el.faultStrategySelect) {
+        el.faultStrategySelect.value = faultStrategy;
+        el.faultStrategySelect.addEventListener("change", () => {
+            faultStrategy = normalizeFaultStrategy(el.faultStrategySelect.value);
+            localStorage.setItem("evchargeFaultStrategy", faultStrategy);
+            setBridgeStatus(`故障调度策略已切换为 ${strategyLabel()}。后续 B 事件会按该策略执行。`);
+            renderFromSnapshot();
+        });
+    }
+    el.timeline.addEventListener("click", async (event) => {
+        const item = event.target.closest(".timeline-item");
+        if (!item) return;
+        stopPlayback();
+        if (item.dataset.postIndex) {
+            await advanceToPostCheckpoint(Number(item.dataset.postIndex));
+            return;
+        }
+        await replayTo(Number(item.dataset.index));
+    });
+
+    // 即便后端未连接，也先把 xlsx 镜像表的骨架画出来（完整 xlsx 时间线全部"未触发"）
+    renderXlsxMirror();
+    initBackendBridge();
+    connectStationWebSocket();
+
+    function replaceControl(id) {
+        const current = document.getElementById(id);
+        if (!current) return null;
+        const clone = current.cloneNode(true);
+        current.replaceWith(clone);
+        return clone;
+    }
+
+    function createWsStatus() {
+        const actions = document.querySelector(".map-actions");
+        if (!actions) return null;
+        const status = document.createElement("span");
+        status.className = "tag tag-info";
+        status.style.gap = "8px";
+        status.style.alignItems = "center";
+        status.innerHTML = `<span id="queueWsDot" style="width:8px;height:8px;border-radius:50%;background:#f59f00;box-shadow:0 0 0 4px rgba(245,159,0,.16);"></span><span id="queueWsText">WebSocket 连接中</span>`;
+        actions.prepend(status);
+        return {
+            dot: status.querySelector("#queueWsDot"),
+            text: status.querySelector("#queueWsText")
+        };
+    }
+
+    function renderStationConfigSummary() {
+        const headline = document.getElementById("stationConfigHeadline");
+        const meta = document.getElementById("stationConfigMeta");
+        const waitingChip = document.getElementById("waitingCapacityChip");
+        const pileChip = document.getElementById("pileCapacityChip");
+        const pileZoneTag = document.getElementById("pileZoneCapacityTag");
+        const waitingZoneTag = document.getElementById("waitingZoneCapacityTag");
+        const fastCount = Number(stationConfig.fastPileCount || 3);
+        const slowCount = Number(stationConfig.slowPileCount || 2);
+        const waitingCapacity = Number(stationConfig.waitingCapacity || 10);
+        const pileSlotCapacity = Number(stationConfig.pileSlotCapacity || 3);
+        const fastPowerKw = Number(stationConfig.fastPowerKw || 30);
+        const slowPowerKw = Number(stationConfig.slowPowerKw || 10);
+
+        if (headline) {
+            headline.textContent = `${fastCount + slowCount} 桩 · 等候区 N=${waitingCapacity} · 桩内 M=${pileSlotCapacity}`;
+        }
+        if (meta) {
+            meta.textContent = `快充 ${fastCount} / 慢充 ${slowCount} · ${fastPowerKw}/${slowPowerKw} 度每小时 · 车位图与后端配置同步`;
+        }
+        if (waitingChip) {
+            waitingChip.textContent = `N=${waitingCapacity} 等候区`;
+            waitingChip.title = `等候区最大车位容量 N=${waitingCapacity}`;
+        }
+        if (pileChip) {
+            pileChip.textContent = `M=${pileSlotCapacity} 桩内车位`;
+            pileChip.title = `每个充电桩总车位 M=${pileSlotCapacity}，含 1 个充电位和 ${Math.max(pileSlotCapacity - 1, 0)} 个排队位`;
+        }
+        if (pileZoneTag) {
+            pileZoneTag.textContent = `每桩 M=${pileSlotCapacity}：1 个充电位 + ${Math.max(pileSlotCapacity - 1, 0)} 个排队位`;
+        }
+        if (waitingZoneTag) {
+            waitingZoneTag.textContent = `最大容量 N = ${waitingCapacity}`;
+        }
+        applyStationMapLayout();
+        if (el.waitingCapacityInput && document.activeElement !== el.waitingCapacityInput) {
+            el.waitingCapacityInput.value = String(waitingCapacity);
+        }
+        if (el.pileCapacityInput && document.activeElement !== el.pileCapacityInput) {
+            el.pileCapacityInput.value = String(pileSlotCapacity);
+        }
+        if (el.fastPileCountInput && document.activeElement !== el.fastPileCountInput) {
+            el.fastPileCountInput.value = String(stationConfig.fastPileCount ?? 3);
+        }
+        if (el.slowPileCountInput && document.activeElement !== el.slowPileCountInput) {
+            el.slowPileCountInput.value = String(stationConfig.slowPileCount ?? 2);
+        }
+        if (el.hudMeta && snapshot) {
+            const current = activePostIndex >= 0
+                ? apiEvents.length + activePostIndex + 1
+                : Math.max(activeEventIndex + 1, 0);
+            el.hudMeta.textContent = `事件 ${current}/${xlsxTimelineEvents.length} · M=${pileSlotCapacity} · N=${waitingCapacity} · WebSocket 与路网视图实时同步`;
+        }
+    }
+    window.renderDispatchStationConfigSummary = renderStationConfigSummary;
+    window.addEventListener("resize", () => applyStationMapLayout());
+
+    function applyStationMapLayout() {
+        const stationMap = document.querySelector(".station-map");
+        if (!stationMap) return;
+        const pileSlotCapacity = Math.max(Number(stationConfig.pileSlotCapacity || 3), 1);
+        const waitingCapacity = Math.max(Number(stationConfig.waitingCapacity || 10), 0);
+        const width = window.innerWidth || document.documentElement.clientWidth || 1440;
+        const pileColumns = width <= 1060 && width > 640 ? 2 : 5;
+        const pileRows = Math.ceil(5 / pileColumns);
+        const pileBayHeight = 60 + pileSlotCapacity * 66;
+        const chargingZoneHeight = 44 + 28 + pileRows * pileBayHeight + Math.max(pileRows - 1, 0) * 12;
+        const driveLaneTop = 44 + chargingZoneHeight + 26;
+        const redispatchZoneTop = driveLaneTop + 76;
+        const redispatchZoneHeight = 136;
+        const waitingCapacityRows = Math.max(Math.ceil(waitingCapacity / 10), 1);
+        const waitingZoneHeight = 250 + Math.max(waitingCapacityRows - 1, 0) * 44;
+        const waitingZoneTop = redispatchZoneTop + redispatchZoneHeight + 14;
+        const stationMapHeight = waitingZoneTop + waitingZoneHeight + 48;
+
+        stationMap.style.setProperty("--charging-zone-height", `${chargingZoneHeight}px`);
+        stationMap.style.setProperty("--drive-lane-top", `${driveLaneTop}px`);
+        stationMap.style.setProperty("--route-arrow-top", `${driveLaneTop - 6}px`);
+        stationMap.style.setProperty("--redispatch-zone-top", `${redispatchZoneTop}px`);
+        stationMap.style.setProperty("--redispatch-zone-height", `${redispatchZoneHeight}px`);
+        stationMap.style.setProperty("--waiting-zone-top", `${waitingZoneTop}px`);
+        stationMap.style.setProperty("--waiting-zone-height", `${waitingZoneHeight}px`);
+        stationMap.style.setProperty("--station-map-height", `${stationMapHeight}px`);
+    }
+
+    async function initBackendBridge() {
+        try {
+            const response = await apiGet("/api/admin/snapshot");
+            snapshot = response.data;
+            previousSnapshot = null;
+            stationConfig = snapshot.stationConfig || stationConfig;
+            activeEventIndex = inferActiveIndex(snapshot);
+            activePostIndex = inferActivePostIndex(snapshot);
+            postEvent = null;
+            renderFromSnapshot();
+            await refreshPersistenceCounts();
+        } catch (error) {
+            setBridgeStatus("后端未连接，当前显示本地演示数据。启动 Spring Boot 后刷新页面即可接入真实状态。");
+            console.warn("[backend bridge]", error);
+        }
+    }
+
+    function connectStationWebSocket() {
+        if (!("WebSocket" in window) || !location.origin.startsWith("http")) return;
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+        let connected = false;
+
+        socket.addEventListener("open", () => {
+            sendStomp(socket, "CONNECT", {
+                "accept-version": "1.2",
+                host: location.host,
+                "heart-beat": "10000,10000"
+            });
+        });
+
+        socket.addEventListener("message", (event) => {
+            parseStompFrames(String(event.data)).forEach((frame) => {
+                if (frame.command === "CONNECTED" && !connected) {
+                    connected = true;
+                    sendStomp(socket, "SUBSCRIBE", {
+                        id: "station-admin-queue",
+                        destination: "/topic/station"
+                    });
+                    sendStomp(socket, "SEND", { destination: "/app/station/snapshot" }, "{}");
+                    setBridgeStatus("WebSocket 已连接，管理员沙盘会跟随后端状态实时刷新。");
+                    return;
+                }
+                if (frame.command !== "MESSAGE" || !frame.body) return;
+                try {
+                    const message = JSON.parse(frame.body);
+                    if (!message.snapshot) return;
+                    previousSnapshot = snapshot;
+                    snapshot = message.snapshot;
+                    stationConfig = snapshot.stationConfig || stationConfig;
+                    activeEventIndex = inferActiveIndex(snapshot);
+                    if (activePostIndex < 0) activePostIndex = inferActivePostIndex(snapshot);
+                    renderFromSnapshot();
+                    refreshPersistenceCounts();
+                    pushRealtimeEvent(message.type || "STATE_CHANGED", describeSnapshotChange(snapshot, previousSnapshot));
+                    setBridgeStatus(`WebSocket 推送：${message.type || "STATE_CHANGED"} · ${formatDateTime(snapshot.now)}`);
+                } catch (error) {
+                    console.warn("[station websocket message]", error);
+                }
+            });
+        });
+
+        socket.addEventListener("close", () => {
+            if (connected) setBridgeStatus("WebSocket 已断开，页面仍会在按钮操作时通过 REST 刷新。");
+            window.setTimeout(connectStationWebSocket, 3000);
+        });
+
+        socket.addEventListener("error", () => {
+            setBridgeStatus("WebSocket 暂不可用，页面仍可通过 REST 操作。");
+        });
+    }
+
+    function sendStomp(socket, command, headers = {}, body = "") {
+        const headerText = Object.entries(headers)
+            .map(([key, value]) => `${key}:${value}`)
+            .join("\n");
+        socket.send(`${command}\n${headerText}\n\n${body}\u0000`);
+    }
+
+    function parseStompFrames(data) {
+        return data.split("\u0000")
+            .map((raw) => raw.trim())
+            .filter(Boolean)
+            .map((raw) => {
+                const separator = raw.indexOf("\n\n");
+                const head = separator >= 0 ? raw.slice(0, separator) : raw;
+                const body = separator >= 0 ? raw.slice(separator + 2) : "";
+                const lines = head.split("\n");
+                return { command: lines[0], body };
+            });
+    }
+
+    async function apiGet(path) {
+        const data = await EVAuth.api(path);
+        return { success: true, data, message: "OK" };
+    }
+
+    async function apiPost(path, body) {
+        const options = { method: "POST" };
+        if (body) options.body = JSON.stringify(body);
+        const data = await EVAuth.api(path, options);
+        return { success: true, data, message: "OK" };
+    }
+
+    async function resetBackend(shouldStopPlayback = true) {
+        if (shouldStopPlayback) stopPlayback();
+        setBusy(true, "重置中");
+        try {
+            const response = await apiPost("/api/admin/clock/reset?time=06:00");
+            snapshot = response.data;
+            previousSnapshot = null;
+            stationConfig = snapshot.stationConfig || stationConfig;
+            activeEventIndex = -1;
+            activePostIndex = -1;
+            postEvent = null;
+            xlsxFilledSnapshots.clear();
+            xlsxPostSnapshots.clear();
+            renderFromSnapshot();
+            await refreshPersistenceCounts();
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function updateStationConfig() {
+        stopPlayback();
+        const waitingCapacity = Number(el.waitingCapacityInput?.value || stationConfig.waitingCapacity || 10);
+        const pileSlotCapacity = Number(el.pileCapacityInput?.value || stationConfig.pileSlotCapacity || 3);
+        const fastPileCount = el.fastPileCountInput
+                ? Number(el.fastPileCountInput.value)
+                : (stationConfig.fastPileCount ?? 3);
+        const slowPileCount = el.slowPileCountInput
+                ? Number(el.slowPileCountInput.value)
+                : (stationConfig.slowPileCount ?? 2);
+        if (!Number.isInteger(waitingCapacity) || waitingCapacity < 0 || waitingCapacity > 99) {
+            setBridgeStatus("N 必须是 0 到 99 之间的整数。");
+            el.waitingCapacityInput?.focus();
+            return;
+        }
+        if (!Number.isInteger(pileSlotCapacity) || pileSlotCapacity < 1 || pileSlotCapacity > 8) {
+            setBridgeStatus("M 必须是 1 到 8 之间的整数。");
+            el.pileCapacityInput?.focus();
+            return;
+        }
+        if (!Number.isInteger(fastPileCount) || fastPileCount < 0 || fastPileCount > 20) {
+            setBridgeStatus("快充桩数必须是 0 到 20 之间的整数。");
+            el.fastPileCountInput?.focus();
+            return;
+        }
+        if (!Number.isInteger(slowPileCount) || slowPileCount < 0 || slowPileCount > 20) {
+            setBridgeStatus("慢充桩数必须是 0 到 20 之间的整数。");
+            el.slowPileCountInput?.focus();
+            return;
+        }
+        const pileCountChanged = fastPileCount !== (stationConfig.fastPileCount ?? 3)
+                || slowPileCount !== (stationConfig.slowPileCount ?? 2);
+        if (pileCountChanged) {
+            const ok = window.confirm("调整桩数前需清空所有等候 / 桩内队列，确定继续？");
+            if (!ok) return;
+        }
+
+        setBusy(true, "应用参数中");
+        try {
+            const response = await apiPost("/api/admin/config", {
+                waitingCapacity,
+                pileSlotCapacity,
+                fastPileCount,
+                slowPileCount
+            });
+            previousSnapshot = snapshot;
+            snapshot = response.data;
+            stationConfig = snapshot.stationConfig || { ...stationConfig, waitingCapacity, pileSlotCapacity, fastPileCount, slowPileCount };
+            activeEventIndex = inferActiveIndex(snapshot);
+            renderFromSnapshot();
+            await refreshPersistenceCounts();
+            pushRealtimeEvent("CONFIG_UPDATED", `参数：N=${stationConfig.waitingCapacity}，M=${stationConfig.pileSlotCapacity}，快充=${stationConfig.fastPileCount}，慢充=${stationConfig.slowPileCount}`);
+            setBridgeStatus(`参数已更新：N=${stationConfig.waitingCapacity}，M=${stationConfig.pileSlotCapacity}，快充桩=${stationConfig.fastPileCount}，慢充桩=${stationConfig.slowPileCount}。`);
+        } catch (error) {
+            setBridgeStatus(`参数更新失败：${error.message}`);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function stepForward() {
+        stopPlayback();
+        await applyNextEvent();
+    }
+
+    async function applyNextEvent() {
+        if (activeEventIndex < apiEvents.length - 1) {
+            const next = activeEventIndex + 1;
+            if (next === 0) {
+                await resetBackend(false);
+            }
+            await applyEvent(next);
+            return;
+        }
+        if (activePostIndex < postXlsxEvents.length - 1) {
+            await advanceToPostCheckpoint(activePostIndex + 1);
+            return;
+        }
+        activePostIndex = -1;
+        postEvent = null;
+        xlsxPostSnapshots.clear();
+        {
+            await resetBackend(false);
+            await applyEvent(0);
+        }
+    }
+
+    async function replayTo(targetIndex) {
+        setBusy(true, "回放中");
+        try {
+            const reset = await apiPost("/api/admin/clock/reset?time=06:00");
+            snapshot = reset.data;
+            previousSnapshot = null;
+            stationConfig = snapshot.stationConfig || stationConfig;
+            activeEventIndex = -1;
+            postEvent = null;
+            // 时间线跳转：清空 xlsx 镜像缓存，再按顺序重放并自动留存
+            xlsxFilledSnapshots.clear();
+            xlsxPostSnapshots.clear();
+            activePostIndex = -1;
+            for (let i = 0; i <= targetIndex; i += 1) {
+                await applyEvent(i, false);
+            }
+            renderFromSnapshot();
+            await refreshPersistenceCounts();
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function applyEvent(index, shouldRender = true) {
+        const evt = apiEvents[index];
+        previousSnapshot = snapshot;
+        const response = await apiPost("/api/acceptance/event", {
+            time: evt[0],
+            action: evt[1],
+            subject: evt[2],
+            mode: evt[3],
+            amount: Number(evt[4]),
+            strategy: faultStrategy
+        });
+        snapshot = response.data;
+        stationConfig = snapshot.stationConfig || stationConfig;
+        activeEventIndex = index;
+        activePostIndex = -1;
+        postEvent = null;
+        xlsxPostSnapshots.clear();
+        // 总是把当时的 snapshot 留存下来 — 即便 replay 不全量渲染，xlsx 镜像表也要能回放
+        xlsxFilledSnapshots.set(index, snapshot);
+        if (shouldRender) {
+            renderFromSnapshot();
+            await refreshPersistenceCounts();
+        }
+    }
+
+    function togglePlayback() {
+        if (playing) {
+            stopPlayback();
+            return;
+        }
+        playing = true;
+        el.play.textContent = "暂停回放";
+        playbackTimer = window.setInterval(async () => {
+            if (!playing || playBusy) return;
+            playBusy = true;
+            try {
+                await applyNextEvent();
+                if (activeEventIndex >= apiEvents.length - 1 && activePostIndex >= postXlsxEvents.length - 1) stopPlayback();
+            } catch (error) {
+                stopPlayback();
+                setBridgeStatus(`后端事件推进失败：${error.message}`);
+                console.error(error);
+            } finally {
+                playBusy = false;
+            }
+        }, 1050);
+    }
+
+    function stopPlayback() {
+        playing = false;
+        if (playbackTimer) window.clearInterval(playbackTimer);
+        playbackTimer = null;
+        el.play.textContent = "播放回放";
+    }
+
+    async function advanceAfterLastEvent(targetTime, label) {
+        stopPlayback();
+        setBusy(true, "推进中");
+        try {
+            const postIndex = postXlsxEvents.findIndex(evt => evt[0] === targetTime);
+            if (postIndex >= 0) {
+                await advanceToPostCheckpoint(postIndex, false);
+            } else {
+                if (activeEventIndex !== apiEvents.length - 1 || !snapshot || String(snapshot.now || "").slice(11, 16) > targetTime) {
+                    await replayTo(apiEvents.length - 1);
+                }
+                const currentTime = String(snapshot.now || "").slice(11, 16);
+                const delta = minutesBetween(currentTime, targetTime);
+                previousSnapshot = snapshot;
+                if (delta > 0) {
+                    await apiPost(`/api/admin/clock/advance?minutes=${delta}`);
+                    const refreshed = await apiGet("/api/admin/snapshot");
+                    snapshot = refreshed.data;
+                }
+                stationConfig = snapshot.stationConfig || stationConfig;
+                activeEventIndex = apiEvents.length - 1;
+                postEvent = [targetTime, "R", label, "O", "0"];
+                renderFromSnapshot();
+            }
+            await refreshPersistenceCounts();
+            pushRealtimeEvent("POST_1050", `${targetTime} ${label}`);
+            setBridgeStatus(`已推进到 ${targetTime}：${label}，当前状态已刷新。`);
+        } catch (error) {
+            setBridgeStatus(`10:50 后推进失败：${error.message}`);
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function advanceToPostCheckpoint(targetIndex, manageBusy = true) {
+        if (manageBusy) setBusy(true, "推进中");
+        try {
+            if (activeEventIndex !== apiEvents.length - 1 || !snapshot) {
+                await replayTo(apiEvents.length - 1);
+            }
+            if (String(snapshot.now || "").slice(11, 16) > postXlsxEvents[targetIndex][0]) {
+                await replayTo(apiEvents.length - 1);
+            }
+            for (let i = Math.max(0, activePostIndex + 1); i <= targetIndex; i += 1) {
+                const evt = postXlsxEvents[i];
+                const currentTime = String(snapshot.now || "").slice(11, 16);
+                const delta = minutesBetween(currentTime, evt[0]);
+                previousSnapshot = snapshot;
+                if (delta > 0) {
+                    await apiPost(`/api/admin/clock/advance?minutes=${delta}`);
+                    const refreshed = await apiGet("/api/admin/snapshot");
+                    snapshot = refreshed.data;
+                }
+                stationConfig = snapshot.stationConfig || stationConfig;
+                activeEventIndex = apiEvents.length - 1;
+                activePostIndex = i;
+                postEvent = evt;
+                xlsxPostSnapshots.set(i, snapshot);
+            }
+            renderFromSnapshot();
+        } finally {
+            if (manageBusy) setBusy(false);
+        }
+    }
+
+    function minutesBetween(from, to) {
+        const [fh, fm] = String(from || "00:00").split(":").map(Number);
+        const [th, tm] = String(to || "00:00").split(":").map(Number);
+        return Math.max(0, th * 60 + tm - (fh * 60 + fm));
+    }
+
+    function setBusy(isBusy, text = "处理中") {
+        [el.play, el.step, el.reset, el.advance1130, el.advance1250, el.advance1850].forEach((button) => {
+            if (button) button.disabled = isBusy;
+        });
+        if (isBusy) el.step.textContent = text;
+        else el.step.textContent = "下一事件";
+    }
+
+    function inferActiveIndex(data) {
+        if (!data || (!data.requests?.length && !data.details?.length)) return -1;
+        const time = String(data.now || "").slice(11, 16);
+        let index = -1;
+        apiEvents.forEach((evt, i) => {
+            if (evt[0] <= time) index = i;
+        });
+        return index;
+    }
+
+    function inferActivePostIndex(data) {
+        if (!data) return -1;
+        const time = String(data.now || "").slice(11, 16);
+        let index = -1;
+        postXlsxEvents.forEach((evt, i) => {
+            if (evt[0] <= time) index = i;
+        });
+        return index;
+    }
+
+    function renderFromSnapshot() {
+        if (!snapshot) return;
+        // WebSocket 推送 / 初次加载也会进入这里——若推断出 activeEventIndex >= 0，
+        // 把当前 snapshot 也写进 xlsx 镜像缓存（保证刷新页面后已发生的事件依旧可查）
+        if (activePostIndex >= 0) xlsxPostSnapshots.set(activePostIndex, snapshot);
+        else if (activeEventIndex >= 0) xlsxFilledSnapshots.set(activeEventIndex, snapshot);
+        const mapped = mapSnapshot(snapshot);
+        const previousMapped = previousSnapshot ? mapSnapshot(previousSnapshot) : null;
+        const motionEvent = deriveSnapshotMotionEvent(mapped, previousMapped, snapshot, previousSnapshot);
+        const timelineEvent = activePostIndex >= 0 ? postXlsxEvents[activePostIndex] : apiEvents[activeEventIndex];
+        const activeEvent = motionEvent || postEvent || (activeEventIndex >= 0 ? timelineEvent : ["06:00", "A", "待执行", "F", "0"]);
+        const threeEventIndex = motionEvent ? Math.max(activeEventIndex, 0) : activeEventIndex;
+
+        window.dispatchPiles = mapped.piles;
+        window.dispatchWaitingFast = mapped.waitingFast;
+        window.dispatchWaitingSlow = mapped.waitingSlow;
+        window.dispatchRedispatchFast = mapped.redispatchFast;
+        window.dispatchRedispatchSlow = mapped.redispatchSlow;
+        window.dispatchStationConfig = stationConfig;
+        window.dispatchPreviousPiles = previousMapped?.piles || [];
+        window.dispatchPreviousWaitingFast = previousMapped?.waitingFast || [];
+        window.dispatchPreviousWaitingSlow = previousMapped?.waitingSlow || [];
+        window.dispatchPreviousRedispatchFast = previousMapped?.redispatchFast || [];
+        window.dispatchPreviousRedispatchSlow = previousMapped?.redispatchSlow || [];
+        window.dispatchRoutePlan = null;
+        window.dispatchActiveEvent = activeEvent;
+        window.dispatchActiveIndex = threeEventIndex;
+        window.dispatchEvents = apiEvents;
+
+        renderStationConfigSummary();
+        renderEventPanel(activeEvent);
+        renderTimeline();
+        renderPiles(mapped.piles, activeEvent);
+        renderQueue(el.fastQueue, mapped.waitingFast, activeEvent);
+        renderQueue(el.slowQueue, mapped.waitingSlow, activeEvent);
+        renderQueue(el.redispatchFastQueue, mapped.redispatchFast, activeEvent, "当前无快充故障重调度车辆", true);
+        renderQueue(el.redispatchSlowQueue, mapped.redispatchSlow, activeEvent, "当前无慢充故障重调度车辆", true);
+        renderWaitingCapacityGrid(mapped.waitingFast, mapped.waitingSlow);
+        renderVehicleRows(mapped.rows);
+
+        el.fastCount.textContent = `${mapped.waitingFast.length} 辆`;
+        el.slowCount.textContent = `${mapped.waitingSlow.length} 辆`;
+        if (el.redispatchFastCount) el.redispatchFastCount.textContent = `${mapped.redispatchFast.length} 辆`;
+        if (el.redispatchSlowCount) el.redispatchSlowCount.textContent = `${mapped.redispatchSlow.length} 辆`;
+        if (el.redispatchCount) {
+            el.redispatchCount.textContent = `${mapped.redispatchFast.length + mapped.redispatchSlow.length} 辆 · 不占普通等候区`;
+        }
+
+        const occupancy = snapshot.waitingFast.length + snapshot.waitingSlow.length;
+        const faultCount = snapshot.piles.filter((pile) => pile.status === "FAULT").length;
+        const cards = document.querySelectorAll(".timeline-card .detail-row .info-card .value");
+        if (cards[1]) cards[1].innerHTML = `${occupancy}<span class="unit">/ ${Number(stationConfig.waitingCapacity || 10)}</span>`;
+        if (cards[2]) cards[2].innerHTML = `${faultCount}<span class="unit">个</span>`;
+
+        if (el.animatedCar) {
+            el.animatedCar.textContent = activeEvent[2];
+            el.animatedCar.className = `animated-car is-${eventMotion(activeEvent)}`;
+        }
+
+        if (window.updateThreeDispatchYard && (motionEvent || activeEventIndex >= 0)) {
+            window.updateThreeDispatchYard(activeEvent, threeEventIndex);
+        }
+        renderXlsxMirror();
+        previousStationConfig = { ...stationConfig };
+    }
+
+    function deriveSnapshotMotionEvent(currentMapped, previousMapped, currentData, previousData) {
+        if (!currentMapped || !previousMapped || !currentData || !previousData) return null;
+        const currentLocations = vehicleLocationMap(currentMapped);
+        const previousLocations = vehicleLocationMap(previousMapped);
+        const requestByVehicle = latestRequestByVehicle(currentData.requests || []);
+
+        for (const [vehicleId, location] of currentLocations.entries()) {
+            const previous = previousLocations.get(vehicleId);
+            if (!previous || !sameVehicleLocation(previous, location)) {
+                return makeRealtimeEvent(currentData.now, vehicleId, location, requestByVehicle.get(vehicleId), false);
+            }
+        }
+
+        for (const [vehicleId, previous] of previousLocations.entries()) {
+            if (!currentLocations.has(vehicleId)) {
+                const previousRequest = latestRequestByVehicle(previousData.requests || []).get(vehicleId);
+                return makeRealtimeEvent(currentData.now, vehicleId, previous, previousRequest, true);
+            }
+        }
+        return null;
+    }
+
+    function vehicleLocationMap(mapped) {
+        const locations = new Map();
+        mapped.piles.forEach((pile) => {
+            [pile.current, ...pile.queue].forEach((vehicleId, slot) => {
+                if (!vehicleId) return;
+                locations.set(vehicleId, {
+                    zone: "pile",
+                    pileId: pile.id,
+                    slot,
+                    mode: pile.id.startsWith("F") ? "F" : "T"
+                });
+            });
+        });
+        mapped.waitingFast.forEach((car, index) => {
+            locations.set(car.id, { zone: "waiting", queue: "F", index, mode: "F" });
+        });
+        mapped.waitingSlow.forEach((car, index) => {
+            locations.set(car.id, { zone: "waiting", queue: "T", index, mode: "T" });
+        });
+        mapped.redispatchFast.forEach((car, index) => {
+            locations.set(car.id, { zone: "redispatch", queue: "F", index, mode: "F" });
+        });
+        mapped.redispatchSlow.forEach((car, index) => {
+            locations.set(car.id, { zone: "redispatch", queue: "T", index, mode: "T" });
+        });
+        return locations;
+    }
+
+    function sameVehicleLocation(a, b) {
+        return a.zone === b.zone
+            && a.pileId === b.pileId
+            && a.slot === b.slot
+            && a.queue === b.queue
+            && a.index === b.index;
+    }
+
+    function makeRealtimeEvent(nowValue, vehicleId, location, request, isExit) {
+        const mode = request?.mode === "FAST" ? "F" : request?.mode === "SLOW" ? "T" : location.mode || "F";
+        const amount = isExit ? "0" : formatNumber(request?.requestedKwh || 0);
+        const event = [String(nowValue || "").slice(11, 16) || "--:--", "A", vehicleId, mode, amount];
+        event.isRealtime = true;
+        return event;
+    }
+
+    function describeSnapshotChange(currentData, previousData) {
+        if (!currentData || !previousData) return "同步最新站内状态";
+        const currentConfig = currentData.stationConfig || stationConfig;
+        const previousConfig = previousData.stationConfig || previousStationConfig;
+        if (currentConfig.waitingCapacity !== previousConfig.waitingCapacity || currentConfig.pileSlotCapacity !== previousConfig.pileSlotCapacity) {
+            return `容量变化 N ${previousConfig.waitingCapacity}→${currentConfig.waitingCapacity}，M ${previousConfig.pileSlotCapacity}→${currentConfig.pileSlotCapacity}`;
+        }
+        const currentMapped = mapSnapshot(currentData);
+        const previousMapped = mapSnapshot(previousData);
+        const motion = deriveSnapshotMotionEvent(currentMapped, previousMapped, currentData, previousData);
+        if (motion) {
+            const target = vehicleLocationMap(currentMapped).get(motion[2]);
+            const zoneText = target?.zone === "pile"
+                ? `${target.pileId} ${target.slot === 0 ? "充电位" : "排队位 Q" + target.slot}`
+                : target?.zone === "waiting" ? `${target.queue} 等候区`
+                    : target?.zone === "redispatch" ? `${target.queue} 故障重调度队列` : "离场";
+            return `${motion[2]} ${motion[4] === "0" ? "离场/取消" : "进入 " + zoneText}`;
+        }
+        return `站内状态刷新 ${formatDateTime(currentData.now)}`;
+    }
+
+    function pushRealtimeEvent(type, text) {
+        realtimeEvents.unshift({
+            type,
+            text,
+            time: formatDateTime(snapshot?.now || new Date().toISOString()).slice(11, 16) || "--:--"
+        });
+        realtimeEvents.splice(8);
+        renderRealtimeStream();
+    }
+
+    function renderRealtimeStream() {
+        if (!el.realtimeStream) return;
+        el.realtimeStream.innerHTML = realtimeEvents.length ? realtimeEvents.map((item, index) => `
+            <div class="realtime-item ${index === 0 ? "is-latest" : ""}">
+                <span class="time">${item.time}</span> · ${item.type} · ${item.text}
+            </div>
+        `).join("") : `
+            <div class="realtime-item is-latest">
+                <span class="time">等待</span> · 真实申请、M/N 修改、故障恢复会在这里显示。
+            </div>
+        `;
+    }
+
+    function mapSnapshot(data) {
+        const requestByVehicle = latestRequestByVehicle(data.requests || []);
+        const piles = (data.piles || []).map((pile) => ({
+            id: pile.id,
+            type: pile.mode === "FAST" ? "快充" : "慢充",
+            power: pile.powerKw,
+            state: pile.status === "FAULT" ? "fault" : pile.status === "DISABLED" ? "disabled" : "work",
+            current: pile.currentVehicle,
+            queue: pile.queuedVehicles || [],
+            note: pile.status === "FAULT"
+                ? "故障中，故障车辆按时间顺序重调度"
+                : `${pile.currentVehicle ? "正在服务 " + pile.currentVehicle : "空闲可叫号"}`
+        }));
+
+        const waitingFast = (data.waitingFast || []).map((vehicleId) => queueChip(vehicleId, requestByVehicle));
+        const waitingSlow = (data.waitingSlow || []).map((vehicleId) => queueChip(vehicleId, requestByVehicle));
+        const redispatchFast = redispatchChips(data.requests || [], "FAST");
+        const redispatchSlow = redispatchChips(data.requests || [], "SLOW");
+        const rows = buildVehicleRows(data, requestByVehicle);
+        return { piles, waitingFast, waitingSlow, redispatchFast, redispatchSlow, rows };
+    }
+
+    function latestRequestByVehicle(requests) {
+        const map = new Map();
+        requests.forEach((request) => {
+            const previous = map.get(request.vehicleId);
+            if (!previous || String(request.createdAt) > String(previous.createdAt)) {
+                map.set(request.vehicleId, request);
+            }
+        });
+        return map;
+    }
+
+    function queueChip(vehicleId, requestByVehicle) {
+        const request = requestByVehicle.get(vehicleId);
+        return {
+            id: vehicleId,
+            queue: request?.queueNo || "—",
+            amount: formatNumber(request?.requestedKwh || 0),
+            wait: statusText(request?.status || "WAITING_AREA", request)
+        };
+    }
+
+    function redispatchChips(requests, mode) {
+        const latest = new Map();
+        requests.forEach((request) => {
+            const previous = latest.get(request.vehicleId);
+            if (!previous || String(request.createdAt) > String(previous.createdAt)) latest.set(request.vehicleId, request);
+        });
+        return [...latest.values()]
+            .filter((request) => request.status === "REDISPATCHING" && request.mode === mode)
+            .sort((a, b) => queueNoSort(a.queueNo) - queueNoSort(b.queueNo))
+            .map((request) => ({
+                id: request.vehicleId,
+                queue: request.queueNo || "—",
+                amount: formatNumber(request.requestedKwh || 0),
+                wait: statusText(request.status, request)
+            }));
+    }
+
+    function queueNoSort(queueNo) {
+        const match = String(queueNo || "").match(/\d+/);
+        return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+    }
+
+    function buildVehicleRows(data, requestByVehicle) {
+        const activeStatuses = new Set(["WAITING_AREA", "REDISPATCHING", "PILE_QUEUE", "CHARGING", "INTERRUPTED"]);
+        const rows = (data.requests || [])
+            .filter((request) => activeStatuses.has(request.status))
+            .map((request) => [
+                areaText(request.status),
+                request.pileId || (request.mode === "FAST" ? "F 队列" : "T 队列"),
+                request.vehicleId,
+                request.queueNo,
+                "-",
+                `${formatNumber(request.requestedKwh)} 度`,
+                statusText(request.status, request),
+                statusLabel(request.status)
+            ]);
+
+        (data.details || []).slice(-6).reverse().forEach((detail) => {
+            const request = requestByVehicle.get(detail.vehicleId);
+            rows.push([
+                "详单",
+                detail.pileId,
+                detail.vehicleId,
+                request?.queueNo || "-",
+                "-",
+                `${formatNumber(detail.chargedKwh)} 度`,
+                `${detail.durationMinutes} 分钟`,
+                `已出账 ${formatNumber(detail.totalFee)} 元`
+            ]);
+        });
+        return rows;
+    }
+
+    function renderEventPanel(evt) {
+        if (activeEventIndex < 0) {
+            el.eventTime.textContent = "06:00";
+            el.eventName.textContent = "等待第一条验收事件";
+            el.eventDesc.textContent = "已连接后端，点击“下一事件”会按验收用例真实推进调度、计费和落库。";
+            el.eventIndex.innerHTML = `0<span class="unit">/ ${xlsxTimelineEvents.length}</span>`;
+            el.activeEventValue.innerHTML = `06:00<span class="unit">待执行</span>`;
+            setBridgeStatus("后端已连接，当前为重置后的初始状态。");
+            return;
+        }
+        el.eventTime.textContent = evt[0];
+        el.eventName.textContent = eventLabel(evt);
+        el.eventDesc.textContent = eventDesc(evt);
+        const current = activePostIndex >= 0
+            ? apiEvents.length + activePostIndex + 1
+            : activeEventIndex + 1;
+        el.eventIndex.innerHTML = `${current}<span class="unit">/ ${xlsxTimelineEvents.length}</span>`;
+        el.activeEventValue.innerHTML = `${evt[0]}<span class="unit">${eventLabel(evt)}</span>`;
+        setBridgeStatus(`后端实时状态 ${formatDateTime(snapshot.now)}，调度与详单已同步落库。`);
+    }
+
+    function renderTimeline() {
+        el.timeline.innerHTML = xlsxTimelineEvents.map((evt, index) => {
+            const isPost = index >= apiEvents.length;
+            const sourceIndex = isPost ? index - apiEvents.length : index;
+            const active = isPost
+                ? sourceIndex === activePostIndex
+                : activePostIndex < 0 && sourceIndex === activeEventIndex;
+            const dataAttr = isPost ? `data-post-index="${sourceIndex}"` : `data-index="${sourceIndex}"`;
+            return `
+            <button class="timeline-item ${active ? "is-active" : ""}" ${dataAttr}>
+                <span class="t">${evt[0]}</span>
+                <span class="e">${eventLabel(evt)}</span>
+                <span class="k">${isPost ? "XLSX" : evt[1]}</span>
+            </button>
+        `;
+        }).join("");
+    }
+
+    function renderPiles(piles, activeEvent) {
+        const pileSlotCapacity = Number(stationConfig.pileSlotCapacity || 3);
+        el.pileBoard.innerHTML = piles.map((pile) => {
+            const isActiveFault = activeEvent[1] === "B" && activeEvent[2] === pile.id;
+            const classes = ["pile-bay"];
+            if (pile.state === "fault" || isActiveFault) classes.push("is-fault");
+            if (pile.state === "disabled") classes.push("is-disabled");
+            const queueSlots = [pile.current, ...pile.queue].slice(0, pileSlotCapacity);
+            const occupied = queueSlots.filter(Boolean).length;
+            const isFull = occupied >= pileSlotCapacity;
+            const slotHtml = Array.from({ length: pileSlotCapacity }, (_, slotIndex) => {
+                const vehicle = queueSlots[slotIndex];
+                const stateClass = [
+                    slotIndex === 0 ? "is-current" : "is-waiting",
+                    isFull ? "is-full" : "",
+                    pileSlotCapacity !== previousStationConfig.pileSlotCapacity ? "is-extra" : ""
+                ].filter(Boolean).join(" ");
+                const title = slotIndex === 0 ? "充电位" : `排队位 Q${slotIndex}`;
+                if (!vehicle) {
+                    return `<div class="slot ${stateClass}"><div class="slot-title"><span>${title}</span><span>空</span></div><div class="slot-sub">等待叫号</div></div>`;
+                }
+                const active = activeEvent[2] === vehicle ? " is-active" : "";
+                return `<div class="slot ${stateClass}"><div class="slot-title"><span>${title}</span><span>${vehicle}</span></div><div class="slot-sub${active}">${slotIndex === 0 ? "正在充电" : "桩内排队"} · ${pile.type}</div></div>`;
+            }).join("");
+            return `
+                <div class="${classes.join(" ")}">
+                    <div class="pile-head">
+                        <span>${pile.id} · ${pile.type} · ${occupied}/${pileSlotCapacity}</span>
+                        <span class="tag ${pile.state === "fault" || isActiveFault ? "tag-danger" : pile.state === "disabled" ? "tag-warning" : isFull ? "tag-warning" : "tag-success"}">${pile.state === "fault" || isActiveFault ? "故障" : pile.state === "disabled" ? "停用" : isFull ? "满位" : "工作中"}</span>
+                    </div>
+                    <div class="charger">
+                        <div class="charger-icon"></div>
+                        <div class="charger-meta">${pile.power} 度/小时<br>${pile.note}</div>
+                    </div>
+                    <div class="parking-slots">${slotHtml}</div>
+                </div>`;
+        }).join("");
+    }
+
+    function renderQueue(container, list, activeEvent, emptyText = "当前无等候车辆", isRedispatch = false) {
+        if (!container) return;
+        container.innerHTML = list.length ? list.map((car) => `
+            <div class="car-chip ${activeEvent[2] === car.id ? "is-active" : ""} ${isRedispatch ? "is-redispatch" : ""}">
+                <div class="chip-num">${car.queue} · ${car.id}</div>
+                <div class="chip-info">请求 ${car.amount} 度<br>${car.wait}</div>
+            </div>
+        `).join("") : `<div class="chip-info">${emptyText}</div>`;
+    }
+
+    function renderWaitingCapacityGrid(waitingFast, waitingSlow) {
+        const waitingCapacity = Number(stationConfig.waitingCapacity || 10);
+        const vehicles = [...waitingFast, ...waitingSlow];
+        if (el.waitingCapacityUsage) {
+            el.waitingCapacityUsage.textContent = `${vehicles.length} / ${waitingCapacity}`;
+        }
+        if (!el.waitingCapacityGrid) return;
+        el.waitingCapacityGrid.innerHTML = Array.from({ length: waitingCapacity }, (_, index) => {
+            const vehicle = vehicles[index];
+            const classes = ["capacity-cell"];
+            if (vehicle) classes.push("is-filled");
+            if (waitingCapacity !== previousStationConfig.waitingCapacity && index >= Math.min(waitingCapacity, previousStationConfig.waitingCapacity || 0)) {
+                classes.push("is-new");
+            }
+            return `<div class="${classes.join(" ")}">${vehicle ? vehicle.id : `空 ${index + 1}`}</div>`;
+        }).join("");
+    }
+
+    function renderVehicleRows(rows) {
+        el.vehicleRows.innerHTML = rows.map((row) => {
+            const tagClass = row[7].includes("故障") || row[7].includes("中断") ? "tag-danger"
+                : row[7].includes("排队") ? "tag-warning"
+                : row[7].includes("充电") ? "tag-success"
+                : "tag-info";
+            return `<tr>
+                <td>${row[0]}</td><td>${row[1]}</td><td>${row[2]}</td><td>${row[3]}</td>
+                <td>${row[4]}</td><td>${row[5]}</td><td>${row[6]}</td><td><span class="tag ${tagClass}">${row[7]}</span></td>
+            </tr>`;
+        }).join("");
+    }
+
+    async function refreshPersistenceCounts() {
+        try {
+            const response = await apiGet("/api/admin/persistence/counts");
+            const counts = response.data;
+            const meta = document.getElementById("stationConfigMeta");
+            if (meta) {
+                const fastCount = Number(stationConfig.fastPileCount || 3);
+                const slowCount = Number(stationConfig.slowPileCount || 2);
+                const waitingCapacity = Number(stationConfig.waitingCapacity || 10);
+                const pileSlotCapacity = Number(stationConfig.pileSlotCapacity || 3);
+                meta.textContent = `快充 ${fastCount} / 慢充 ${slowCount} · N=${waitingCapacity} · M=${pileSlotCapacity} · 落库 请求 ${counts.charging_requests} / 详单 ${counts.charging_details} / 故障 ${counts.fault_events}`;
+            }
+        } catch (error) {
+            console.warn("[persistence counts]", error);
+        }
+    }
+
+    function setBridgeStatus(text) {
+        if (el.hudMeta) el.hudMeta.textContent = text;
+        const color = text.includes("断") || text.includes("不可用") || text.includes("失败") ? "#c92a2a"
+            : text.includes("连接") || text.includes("推送") || text.includes("同步") ? "#2b8a3e"
+            : "#f59f00";
+        setWsStatus(text, color);
+    }
+
+    function setWsStatus(text, color) {
+        if (!el.wsStatus) return;
+        el.wsStatus.text.textContent = text.replace(/^WebSocket\s*/, "").slice(0, 18);
+        el.wsStatus.dot.style.background = color;
+        el.wsStatus.dot.style.boxShadow = `0 0 0 4px ${color}22`;
+    }
+
+    function eventLabel(evt) {
+        if (evt[1] === "R") return evt[2];
+        if (evt[1] === "A" && evt[4] === "0") return `${evt[2]} 取消充电`;
+        if (evt[1] === "A") return `${evt[2]} 申请${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+        if (evt[1] === "C") return `${evt[2]} 改为${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+        return `${evt[2]} 充电桩故障 ${evt[4]} 分钟`;
+    }
+
+    function eventDesc(evt) {
+        if (evt[1] === "R") return "10:50 后状态：故障恢复、重调度和最终详单已按后端当前时钟刷新。";
+        if (evt[1] === "A" && evt[4] === "0") return "车辆从等待区或桩内队列移出，后续调度实时重算。";
+        if (evt[1] === "A") return "车辆进入对应模式队列，后端按最短完成时长选择充电桩。";
+        if (evt[1] === "C") return "后端重新计算请求类型、电量、排队号和调度位置。";
+        return `故障桩停止服务，已充部分生成详单，故障车辆按${strategyLabel()}重调度。`;
+    }
+
+    function normalizeFaultStrategy(value) {
+        const normalized = String(value || "").trim().toUpperCase();
+        return normalized === "PRIORITY" ? "PRIORITY" : "TIME_ORDER";
+    }
+
+    function strategyLabel() {
+        return FAULT_STRATEGY_LABELS[faultStrategy] || FAULT_STRATEGY_LABELS.TIME_ORDER;
+    }
+
+    function eventMotion(evt) {
+        if (evt[1] === "R") return "apply";
+        if (evt[1] === "C") return "change";
+        if (evt[1] === "B") return "fault";
+        return "apply";
+    }
+
+    function areaText(status) {
+        if (status === "CHARGING") return "充电区";
+        if (status === "PILE_QUEUE") return "桩内排队";
+        if (status === "WAITING_AREA") return "等候区";
+        return "故障重调度";
+    }
+
+    function statusLabel(status) {
+        const labels = {
+            WAITING_AREA: "等待叫号",
+            REDISPATCHING: "故障重调度",
+            PILE_QUEUE: "桩内排队",
+            CHARGING: "正在充电",
+            COMPLETED: "已完成",
+            CANCELLED: "已取消",
+            INTERRUPTED: "故障中断",
+            PAID: "已支付"
+        };
+        return labels[status] || status;
+    }
+
+    function statusText(status, request) {
+        if (status === "CHARGING") return `已充 ${formatNumber(request?.chargedKwh || 0)} 度`;
+        if (status === "PILE_QUEUE") return "等待前车完成";
+        if (status === "WAITING_AREA") return "等待叫号";
+        if (status === "REDISPATCHING") return "等待故障重调度";
+        if (status === "INTERRUPTED") return "等待故障重调度";
+        return statusLabel(status);
+    }
+
+    function formatNumber(value) {
+        const number = Number(value || 0);
+        return Number.isInteger(number) ? String(number) : number.toFixed(2).replace(/0+$/, "").replace(/\.$/, "");
+    }
+
+    function formatDateTime(value) {
+        return String(value || "").replace("T", " ").slice(0, 16);
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    // 验收 xlsx 镜像表渲染
+    // 列：时刻 / 事件 / 快充1 / 快充2 / 快充3 / 慢充1 / 慢充2 / 等候区(N 辆) / 故障重调度队列
+    // 每个事件占 3 行（与 xlsx 原表一致）：主行 + 2 个桩内排队子行
+    // 数据来源：xlsxFilledSnapshots（每次 applyEvent / WS 推送时自动留存）
+    // ─────────────────────────────────────────────────────────────
+    const SERVICE_RATE = 0.8;
+
+    function rateAtJs(timeHHmm) {
+        // 与后端 BillingService.rateAt 保持一致：峰 1.0 / 平 0.7 / 谷 0.4
+        const [h, m] = String(timeHHmm).split(":").map(Number);
+        const t = (h || 0) * 60 + (m || 0);
+        // 峰时段 10:00-15:00, 18:00-21:00
+        if ((t >= 600 && t < 900) || (t >= 1080 && t < 1260)) return 1.0;
+        // 平时段 07:00-10:00, 15:00-18:00, 21:00-23:00
+        if ((t >= 420 && t < 600) || (t >= 900 && t < 1080) || (t >= 1260 && t < 1380)) return 0.7;
+        return 0.4; // 谷时段
+    }
+
+    function parseHHmm(dt) {
+        if (!dt) return null;
+        const s = String(dt);
+        const m = s.match(/T?(\d{2}):(\d{2})/);
+        return m ? `${m[1]}:${m[2]}` : null;
+    }
+
+    function minutesBetween(startHHmm, endHHmm) {
+        if (!startHHmm || !endHHmm) return 0;
+        const [sh, sm] = startHHmm.split(":").map(Number);
+        const [eh, em] = endHHmm.split(":").map(Number);
+        const start = sh * 60 + sm;
+        let end = eh * 60 + em;
+        if (end < start) end += 24 * 60;
+        return end - start;
+    }
+
+    /** 估算 (chargedKwh, startedAt → nowHHmm) 的当前费用；与后端按分钟段定价规则对齐。 */
+    function estimateCurrentFee(chargedKwh, startedAtHHmm, nowHHmm) {
+        const kwh = Number(chargedKwh || 0);
+        if (kwh <= 0 || !startedAtHHmm || !nowHHmm) return 0;
+        const totalMin = Math.max(1, minutesBetween(startedAtHHmm, nowHHmm));
+        // 沿时段边界切片
+        const boundaries = [7, 10, 15, 18, 21, 23].map(h => h * 60);
+        let cursor = (() => {
+            const [h, m] = startedAtHHmm.split(":").map(Number);
+            return h * 60 + m;
+        })();
+        const endMin = cursor + totalMin;
+        let chargeFee = 0;
+        while (cursor < endMin) {
+            let next = endMin;
+            for (const b of boundaries) {
+                if (b > cursor && b <= endMin) { next = Math.min(next, b); break; }
+            }
+            const slotMin = next - cursor;
+            const slotKwh = kwh * (slotMin / totalMin);
+            const cursorHH = String(Math.floor(cursor / 60) % 24).padStart(2, "0");
+            const cursorMM = String(cursor % 60).padStart(2, "0");
+            chargeFee += slotKwh * rateAtJs(`${cursorHH}:${cursorMM}`);
+            cursor = next;
+        }
+        return chargeFee + kwh * SERVICE_RATE;
+    }
+
+    function modeChar(mode) {
+        return mode === "FAST" ? "F" : mode === "SLOW" ? "T" : (mode || "?");
+    }
+
+    function buildXlsxHead() {
+        const head = document.getElementById("xlsxMirrorHead");
+        if (!head) return;
+        // 桩列按 snapshot.piles 顺序（默认 F1,F2,F3,T1,T2 — 和 xlsx 完全一致）
+        const piles = (snapshot?.piles || []).slice();
+        if (!piles.length) {
+            // 还没拿到 snapshot 时按默认配置渲染骨架
+            const fastN = stationConfig.fastPileCount || 3;
+            const slowN = stationConfig.slowPileCount || 2;
+            for (let i = 1; i <= fastN; i++) piles.push({ id: `F${i}`, mode: "FAST" });
+            for (let i = 1; i <= slowN; i++) piles.push({ id: `T${i}`, mode: "SLOW" });
+        }
+        const cap = Number(stationConfig.waitingCapacity || 10);
+        const cols = [
+            `<th style="width:64px;">时刻</th>`,
+            `<th style="width:130px;">事件</th>`
+        ];
+        piles.forEach(p => {
+            const cls = p.mode === "FAST" ? "col-fast" : "col-slow";
+            const label = p.mode === "FAST" ? "快充" : "慢充";
+            cols.push(`<th class="${cls}">${p.id}<span class="sub">${label}<br/>(车号,已充电量,当前费用)</span></th>`);
+        });
+        cols.push(`<th class="col-wait">等候区(${cap}辆)<span class="sub">(车号,充电类型,充电量)</span></th>`);
+        cols.push(`<th class="col-wait">故障重调度队列<span class="sub">故障后车辆，不占普通等候区</span></th>`);
+        head.innerHTML = cols.join("");
+        // 暴露给 body 渲染：桩列序
+        head.dataset.pileIds = piles.map(p => p.id).join(",");
+        head.dataset.pileModes = piles.map(p => p.mode).join(",");
+    }
+
+    function eventTuple(evt) {
+        if (!evt) return "—";
+        // 与 xlsx 一致：(事件类型, 对应id, 充电类型, 数值)
+        return `(${evt[1]},${evt[2]},${evt[3]},${evt[4]})`;
+    }
+
+    function vehicleCellHtml(snap, pileId, slotIndex) {
+        // slotIndex=0 → pile.current 正在充电的车；slotIndex>=1 → pile.queue[slotIndex-1] 桩内排队
+        const pile = (snap?.piles || []).find(p => p.id === pileId);
+        if (!pile) return `<div class="xlsx-cell empty">—</div>`;
+        const isFault = pile.status === "FAULT";
+        let vehicleId = null;
+        if (slotIndex === 0) {
+            vehicleId = pile.currentVehicle;
+            if (!vehicleId && isFault) {
+                return `<div class="xlsx-cell"><span class="badge fault">故障</span></div>`;
+            }
+            if (!vehicleId) return `<div class="xlsx-cell empty">—</div>`;
+        } else {
+            vehicleId = (pile.queuedVehicles || [])[slotIndex - 1];
+            if (!vehicleId) return `<div class="xlsx-cell empty">—</div>`;
+        }
+        // 该车的 request
+        const req = (snap.requests || [])
+            .filter(r => r.vehicleId === vehicleId)
+            .reduce((a, b) => (!a || String(b.createdAt) > String(a.createdAt) ? b : a), null);
+        const modeCls = req?.mode === "FAST" ? "fast" : req?.mode === "SLOW" ? "slow" : "";
+        if (slotIndex === 0) {
+            const chargedKwh = Number(req?.chargedKwh || 0);
+            const startedHHmm = parseHHmm(req?.startedAt);
+            const nowHHmm = parseHHmm(snap.now);
+            const fee = estimateCurrentFee(chargedKwh, startedHHmm, nowHHmm);
+            const faultBadge = isFault ? `<span class="badge fault">故障中断</span>` : "";
+            return `<div class="xlsx-cell">
+                <span class="veh ${modeCls}">${vehicleId}</span>
+                <span class="kv">${chargedKwh.toFixed(2)} 度 · ¥${fee.toFixed(2)}</span>
+                ${faultBadge}
+            </div>`;
+        }
+        // 桩内排队车（不在充电，已充电量=0，费用=0）
+        return `<div class="xlsx-cell">
+            <span class="veh ${modeCls}">${vehicleId}</span>
+            <span class="badge queue">桩内排队 Q${slotIndex}</span>
+        </div>`;
+    }
+
+    function waitingCellHtml(snap) {
+        if (!snap) return `<div class="xlsx-cell empty">—</div>`;
+        const requestByVehicle = new Map();
+        (snap.requests || []).forEach(r => {
+            const prev = requestByVehicle.get(r.vehicleId);
+            if (!prev || String(r.createdAt) > String(prev.createdAt)) requestByVehicle.set(r.vehicleId, r);
+        });
+        const items = [
+            ...(snap.waitingFast || []).map(v => ({ id: v, mode: "FAST" })),
+            ...(snap.waitingSlow || []).map(v => ({ id: v, mode: "SLOW" }))
+        ];
+        if (!items.length) return `<div class="xlsx-cell empty">（空）</div>`;
+        const chips = items.map(it => {
+            const req = requestByVehicle.get(it.id);
+            const m = modeChar(req?.mode || it.mode);
+            const amt = formatNumber(req?.requestedKwh || 0);
+            const cls = it.mode === "FAST" ? "fast" : "slow";
+            return `<span class="xlsx-waiting-chip ${cls}">(${it.id},${m},${amt})</span>`;
+        }).join("");
+        return `<div class="xlsx-waiting-row">${chips}</div>`;
+    }
+
+    function redispatchCellHtml(snap) {
+        if (!snap) return `<div class="xlsx-cell empty">—</div>`;
+        const items = (snap.requests || [])
+            .filter(r => r.status === "REDISPATCHING")
+            .sort((a, b) => queueNoSort(a.queueNo) - queueNoSort(b.queueNo));
+        if (!items.length) return `<div class="xlsx-cell empty">（空）</div>`;
+        const chips = items.map(req => {
+            const mode = modeChar(req.mode);
+            const amount = formatNumber(req.requestedKwh || 0);
+            const cls = req.mode === "FAST" ? "fast" : "slow";
+            return `<span class="xlsx-waiting-chip ${cls}">(${req.vehicleId},${mode},${amount})</span>`;
+        }).join("");
+        return `<div class="xlsx-waiting-row">${chips}</div>`;
+    }
+
+    function renderXlsxMirror() {
+        const body = document.getElementById("xlsxMirrorBody");
+        const progress = document.getElementById("xlsxMirrorProgress");
+        if (!body) return;
+        buildXlsxHead();
+        const head = document.getElementById("xlsxMirrorHead");
+        const pileIds = (head?.dataset.pileIds || "").split(",").filter(Boolean);
+        const pileModes = (head?.dataset.pileModes || "").split(",");
+
+        const total = xlsxTimelineEvents.length;
+        const filled = xlsxFilledSnapshots.size + xlsxPostSnapshots.size;
+        if (progress) progress.textContent = `进度 ${filled} / ${total}`;
+
+        const rows = [];
+        xlsxTimelineEvents.forEach((evt, index) => {
+            const isPost = index >= apiEvents.length;
+            const sourceIndex = isPost ? index - apiEvents.length : index;
+            const snap = isPost ? (xlsxPostSnapshots.get(sourceIndex) || null) : (xlsxFilledSnapshots.get(sourceIndex) || null);
+            const isActive = isPost
+                ? sourceIndex === activePostIndex
+                : activePostIndex < 0 && sourceIndex === activeEventIndex;
+            const isPast = Boolean(snap) && !isActive;
+            const isFuture = !snap;
+            const rowCls = isActive ? "row-active" : isPast ? "row-past" : "row-future";
+
+            // 主行（slot 0：每桩当前正在充电的车）
+            const mainCells = [
+                `<td class="col-time" rowspan="3">${evt[0]}</td>`,
+                `<td class="col-evt"  rowspan="3">${eventTuple(evt)}</td>`
+            ];
+            pileIds.forEach((pid, i) => {
+                const cellCls = (snap?.piles || []).find(p => p.id === pid)?.status === "FAULT" ? "is-fault" : "";
+                const colCls = pileModes[i] === "FAST" ? "col-fast" : "col-slow";
+                mainCells.push(`<td class="${colCls} ${cellCls}">${snap ? vehicleCellHtml(snap, pid, 0) : (isFuture ? `<div class="xlsx-cell empty">—</div>` : `<div class="xlsx-cell empty">—</div>`)}</td>`);
+            });
+            mainCells.push(`<td class="col-wait" rowspan="3">${snap ? waitingCellHtml(snap) : `<div class="xlsx-cell empty">${isFuture ? "未触发" : "—"}</div>`}</td>`);
+            mainCells.push(`<td class="col-wait" rowspan="3">${snap ? redispatchCellHtml(snap) : `<div class="xlsx-cell empty">${isFuture ? "未触发" : "—"}</div>`}</td>`);
+            rows.push(`<tr class="row-main ${rowCls}">${mainCells.join("")}</tr>`);
+
+            // 第 2/3 行：桩内排队 Q1 / Q2（slot 1/2）
+            [1, 2].forEach(slotIdx => {
+                const slotCells = pileIds.map((pid, i) => {
+                    const cellCls = (snap?.piles || []).find(p => p.id === pid)?.status === "FAULT" ? "is-fault" : "";
+                    const colCls = pileModes[i] === "FAST" ? "col-fast" : "col-slow";
+                    return `<td class="${colCls} ${cellCls}">${snap ? vehicleCellHtml(snap, pid, slotIdx) : `<div class="xlsx-cell empty">—</div>`}</td>`;
+                });
+                rows.push(`<tr class="${rowCls}">${slotCells.join("")}</tr>`);
+            });
+        });
+        body.innerHTML = rows.join("");
+
+        // 自动滚动到当前事件主行
+        if (activeEventIndex >= 0) {
+            const wrap = document.getElementById("xlsxMirrorWrap");
+            const target = body.querySelector(`tr.row-active.row-main`);
+            if (wrap && target) {
+                const offset = target.offsetTop - wrap.clientHeight / 2 + target.clientHeight / 2;
+                wrap.scrollTo({ top: Math.max(0, offset), behavior: "smooth" });
+            }
+        }
+    }
+})();
+
+</script>
+<script type="module">
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js";
+
+const canvas = document.getElementById("threeDispatchCanvas");
+const hudTitle = document.getElementById("threeHudTitle");
+const hudMeta = document.getElementById("threeHudMeta");
+const DEFAULT_STATION_CONFIG = {
+    waitingCapacity: 10,
+    pileSlotCapacity: 3,
+    fastPileCount: 3,
+    slowPileCount: 2,
+    fastPowerKw: 30,
+    slowPowerKw: 10
+};
+
+if (canvas) {
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    const threeStage = canvas.closest(".three-stage");
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.OrthographicCamera(-6, 6, 4, -4, 0.1, 100);
+    camera.position.set(5.5, 6.2, 6.35);
+    camera.lookAt(0.1, 0, 0.38);
+
+    const clock = new THREE.Clock();
+    const staticCars = new THREE.Group();
+    const pilesLayer = new THREE.Group();
+    const labelsLayer = new THREE.Group();
+    const capacityLayer = new THREE.Group();
+    const motionCar = createCarModel("EV", "#4dabf7", 1.12, { label: false, lights: true, accent: true });
+    const routeMaterial = new THREE.MeshBasicMaterial({ color: 0x4dabf7, transparent: true, opacity: 0.72 });
+    const parkedCarRotation = Math.PI / 2;
+    const waitingCarRotation = Math.PI / 2;
+    const laneZ = 3.05;
+    const chargingZ = -1.82;
+    const waitingFastStartX = -5.42;
+    const waitingSlowStartX = -0.55;
+    const waitingSlotGap = 1.28;
+    const waitingRowGap = 0.62;
+    const waitingBaseZ = 1.02;
+    const redispatchFastStartX = -5.42;
+    const redispatchSlowStartX = -0.55;
+    const redispatchSlotGap = 1.28;
+    const redispatchRowGap = 0.48;
+    const redispatchBaseZ = 2.28;
+    let routeLine = null;
+    let activeCurve = null;
+    let activeStartedAt = 0;
+    let activeDuration = 1.45;
+    let activeEvent = null;
+    let activeFinalRotation = null;
+    let renderedPileSlotCapacity = 0;
+    let renderedWaitingCapacity = 0;
+    let capacityPulseUntil = 0;
+
+    scene.add(staticCars, pilesLayer, labelsLayer, capacityLayer, motionCar);
+    motionCar.visible = false;
+
+    buildScene();
+    renderStaticCars();
+    resizeThree();
+    threeStage?.classList.add("is-ready");
+    window.addEventListener("resize", resizeThree);
+
+    window.updateThreeDispatchYard = (evt, index) => {
+        activeEvent = evt;
+        window.renderDispatchStationConfigSummary?.();
+        updateHud(evt, index);
+        syncConfigScene();
+        renderPileLights(evt);
+        renderStaticCars(evt);
+        startEventMotion(evt, index);
+    };
+
+    const initialEvents = window.dispatchEvents || [];
+    if (window.dispatchActiveEvent) {
+        window.updateThreeDispatchYard(window.dispatchActiveEvent, window.dispatchActiveIndex || 0);
+    } else if (initialEvents.length) {
+        window.updateThreeDispatchYard(initialEvents[initialEvents.length - 1], initialEvents.length - 1);
+    }
+
+    renderer.setAnimationLoop(() => {
+        animateMotion();
+        animateCapacityPulse();
+        renderer.render(scene, camera);
+    });
+
+    function resizeThree() {
+        const width = canvas.clientWidth || canvas.parentElement.clientWidth;
+        const height = canvas.clientHeight || 656;
+        renderer.setSize(width, height, false);
+        const aspect = width / height;
+        const frustum = width < 700 ? 5.8 : 5.05;
+        camera.left = -frustum * aspect;
+        camera.right = frustum * aspect;
+        camera.top = frustum;
+        camera.bottom = -frustum;
+        camera.updateProjectionMatrix();
+    }
+
+    function buildScene() {
+        scene.add(new THREE.AmbientLight(0xdbeafe, 1.15));
+
+        const keyLight = new THREE.DirectionalLight(0xffffff, 2.5);
+        keyLight.position.set(4, 8, 5);
+        keyLight.castShadow = true;
+        keyLight.shadow.mapSize.set(1024, 1024);
+        scene.add(keyLight);
+
+        const rimLight = new THREE.PointLight(0x60a5fa, 35, 12);
+        rimLight.position.set(-4.6, 2.4, -2.2);
+        scene.add(rimLight);
+
+        addArea(0, -1.82, 13.8, 3.15, 0x1f2937, 0x60a5fa);
+        addArea(0, 1.18, 13.8, 1.38, 0x172554, 0x51cf66);
+        addArea(0, redispatchBaseZ + 0.16, 13.8, 0.74, 0x3b1f24, 0xff8787);
+        addLane();
+        addPiles();
+        renderWaitingCapacityMarks();
+    }
+
+    function addArea(x, z, width, depth, fill, line) {
+        const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(width, depth),
+            new THREE.MeshStandardMaterial({ color: fill, roughness: 0.82, metalness: 0.08, transparent: true, opacity: 0.88 })
+        );
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.set(x, -0.02, z);
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        const border = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(x - width / 2, 0.02, z - depth / 2),
+                new THREE.Vector3(x + width / 2, 0.02, z - depth / 2),
+                new THREE.Vector3(x + width / 2, 0.02, z + depth / 2),
+                new THREE.Vector3(x - width / 2, 0.02, z + depth / 2),
+                new THREE.Vector3(x - width / 2, 0.02, z - depth / 2)
+            ]),
+            new THREE.LineBasicMaterial({ color: line, transparent: true, opacity: 0.34 })
+        );
+        scene.add(border);
+    }
+
+    function addLane() {
+        const lane = new THREE.Mesh(
+            new THREE.PlaneGeometry(13.6, 0.92),
+            new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7, metalness: 0.06 })
+        );
+        lane.rotation.x = -Math.PI / 2;
+        lane.position.set(0, 0.01, laneZ);
+        lane.receiveShadow = true;
+        scene.add(lane);
+
+        for (let i = -6.3; i <= 6.3; i += 1.65) {
+            [-0.18, 0.18].forEach((offset) => {
+                const dash = new THREE.Mesh(
+                    new THREE.PlaneGeometry(0.72, 0.035),
+                    new THREE.MeshBasicMaterial({ color: 0xe2e8f0, transparent: true, opacity: 0.74 })
+                );
+                dash.rotation.x = -Math.PI / 2;
+                dash.position.set(i, 0.035, laneZ + offset);
+                scene.add(dash);
+            });
+        }
+
+        addLaneArrow(-6.45, laneZ, 0x38bdf8, Math.PI / 2);
+        addLaneArrow(6.45, laneZ, 0x38bdf8, -Math.PI / 2);
+    }
+
+    function addLaneArrow(x, z, color, rotation) {
+        const arrow = new THREE.Mesh(
+            new THREE.ConeGeometry(0.16, 0.42, 3),
+            new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0.9 })
+        );
+        arrow.rotation.set(-Math.PI / 2, 0, rotation);
+        arrow.position.set(x, 0.075, z);
+        scene.add(arrow);
+    }
+
+    function addPiles() {
+        renderedPileSlotCapacity = getPileSlotCapacity();
+        getPiles().forEach((pile) => {
+            const pos = pilePosition(pile.id);
+            const group = new THREE.Group();
+            group.name = `pile-${pile.id}`;
+            group.position.set(pos.x, 0, pos.z);
+
+            const pad = new THREE.Mesh(
+                new THREE.BoxGeometry(2.08, 0.055, 4.05),
+                new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.62, metalness: 0.05 })
+            );
+            pad.position.y = 0.015;
+            pad.receiveShadow = true;
+            group.add(pad);
+
+            const chargerMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.32, metalness: 0.34 });
+            const chargerCapMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.4, metalness: 0.5 });
+            const charger = new THREE.Mesh(new THREE.BoxGeometry(0.38, 0.9, 0.3), chargerMat);
+            charger.position.set(-0.48, 0.48, -1.82);
+            charger.castShadow = true;
+            group.add(charger);
+            // 顶部圆角"帽"，把方盒子升级为更现代的圆柱形罩
+            const chargerCap = new THREE.Mesh(new THREE.CylinderGeometry(0.21, 0.21, 0.08, 24), chargerCapMat);
+            chargerCap.position.set(-0.48, 0.97, -1.82);
+            chargerCap.castShadow = true;
+            group.add(chargerCap);
+            // 侧面装饰条
+            const trim = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.6, 0.32), new THREE.MeshStandardMaterial({ color: 0x4dabf7, emissive: 0x1c7ed6, emissiveIntensity: 0.45 }));
+            trim.position.set(-0.7, 0.46, -1.82);
+            group.add(trim);
+
+            const screen = new THREE.Mesh(
+                new THREE.BoxGeometry(0.27, 0.22, 0.018),
+                new THREE.MeshStandardMaterial({ color: 0xdbeafe, emissive: 0x1c7ed6, emissiveIntensity: 0.75, roughness: 0.2 })
+            );
+            screen.position.set(-0.48, 0.66, -1.98);
+            group.add(screen);
+
+            const lamp = new THREE.Mesh(
+                new THREE.SphereGeometry(0.12, 18, 14),
+                new THREE.MeshStandardMaterial({ color: 0x51cf66, emissive: 0x2b8a3e, emissiveIntensity: 1.2 })
+            );
+            lamp.name = "statusLamp";
+            lamp.position.set(-0.48, 0.98, -1.82);
+            group.add(lamp);
+
+            const faultHalo = new THREE.Mesh(
+                new THREE.RingGeometry(0.28, 0.44, 32),
+                new THREE.MeshBasicMaterial({ color: 0xff6b6b, transparent: true, opacity: 0 })
+            );
+            faultHalo.name = "faultHalo";
+            faultHalo.rotation.x = -Math.PI / 2;
+            faultHalo.position.set(-0.48, 0.072, -1.82);
+            group.add(faultHalo);
+
+            const cable = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(-0.34, 0.58, -1.74),
+                    new THREE.Vector3(0.18, 0.25, -1.42),
+                    new THREE.Vector3(0.22, 0.1, -1.16)
+                ]),
+                new THREE.LineBasicMaterial({ color: 0x94a3b8, transparent: true, opacity: 0.86 })
+            );
+            group.add(cable);
+            // 线缆末端的充电枪：枪柄（短圆柱）+ 枪头（深色圆球），让"充电桩"更直观
+            const gunHandleMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.45, metalness: 0.3 });
+            const gunHandle = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.16, 12), gunHandleMat);
+            gunHandle.rotation.z = Math.PI / 3.2;
+            gunHandle.position.set(0.22, 0.13, -1.18);
+            group.add(gunHandle);
+            const gunHead = new THREE.Mesh(
+                new THREE.SphereGeometry(0.045, 14, 10),
+                new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.4, metalness: 0.35 })
+            );
+            gunHead.position.set(0.28, 0.18, -1.22);
+            group.add(gunHead);
+
+            for (let i = 0; i < getPileSlotCapacity(); i += 1) {
+                group.add(createSlotMark(i));
+            }
+
+            const typeMarker = new THREE.Mesh(
+                new THREE.BoxGeometry(0.58, 0.055, 0.12),
+                new THREE.MeshBasicMaterial({ color: pile.id.startsWith("F") ? 0x4dabf7 : 0x51cf66, transparent: true, opacity: 0.95 })
+            );
+            typeMarker.position.set(0.48, 0.09, -1.88);
+            group.add(typeMarker);
+
+            pilesLayer.add(group);
+        });
+    }
+
+    function syncConfigScene() {
+        const nextPileSlotCapacity = getPileSlotCapacity();
+        const nextWaitingCapacity = getWaitingCapacity();
+        if (nextPileSlotCapacity !== renderedPileSlotCapacity) {
+            pilesLayer.clear();
+            addPiles();
+            capacityPulseUntil = clock.getElapsedTime() + 2.4;
+        }
+        if (nextWaitingCapacity !== renderedWaitingCapacity) {
+            renderWaitingCapacityMarks();
+            capacityPulseUntil = clock.getElapsedTime() + 2.4;
+        }
+    }
+
+    function renderWaitingCapacityMarks() {
+        capacityLayer.clear();
+        const capacity = getWaitingCapacity();
+        renderedWaitingCapacity = capacity;
+        if (capacity <= 0) return;
+
+        const cols = Math.min(10, Math.max(1, Math.ceil(capacity / 2)));
+        const rows = Math.ceil(capacity / cols);
+        const gapX = 0.72;
+        const gapZ = 0.43;
+        const startX = -((cols - 1) * gapX) / 2;
+        const startZ = waitingBaseZ - 0.42;
+
+        for (let i = 0; i < capacity; i += 1) {
+            const col = i % cols;
+            const row = Math.floor(i / cols);
+            const cell = new THREE.Mesh(
+                new THREE.PlaneGeometry(0.54, 0.25),
+                new THREE.MeshBasicMaterial({
+                    color: 0x93c5fd,
+                    transparent: true,
+                    opacity: 0.18,
+                    side: THREE.DoubleSide
+                })
+            );
+            cell.name = "waitingCapacityCell";
+            cell.userData.baseOpacity = 0.18;
+            cell.rotation.x = -Math.PI / 2;
+            cell.position.set(startX + col * gapX, 0.071, startZ + row * gapZ);
+            capacityLayer.add(cell);
+        }
+
+        const label = makeGroundLabel(`WAITING N=${capacity}`, "rgba(15, 23, 42, 0.82)", "#ffffff", 1.35, 0.34, 24);
+        label.position.set(-5.95, 0.075, waitingBaseZ + Math.min(rows, 3) * gapZ + 0.1);
+        capacityLayer.add(label);
+    }
+
+    function createSlotMark(slotIndex) {
+        const group = new THREE.Group();
+        const slotZ = slotLocalZ(slotIndex);
+        const isChargingSlot = slotIndex === 0;
+        const plane = new THREE.Mesh(
+            new THREE.PlaneGeometry(1.52, 0.74),
+            new THREE.MeshBasicMaterial({
+                color: isChargingSlot ? 0x8ce99a : 0x93c5fd,
+                transparent: true,
+                opacity: isChargingSlot ? 0.34 : 0.19
+            })
+        );
+        plane.name = "pileCapacityCell";
+        plane.userData.baseOpacity = isChargingSlot ? 0.34 : 0.19;
+        plane.rotation.x = -Math.PI / 2;
+        plane.position.set(0.04, 0.062, slotZ);
+        group.add(plane);
+
+        const borderColor = isChargingSlot ? 0x51cf66 : 0x60a5fa;
+        const border = new THREE.Line(
+            new THREE.BufferGeometry().setFromPoints([
+                new THREE.Vector3(-0.78, 0.078, slotZ - 0.37),
+                new THREE.Vector3(0.82, 0.078, slotZ - 0.37),
+                new THREE.Vector3(0.82, 0.078, slotZ + 0.37),
+                new THREE.Vector3(-0.78, 0.078, slotZ + 0.37),
+                new THREE.Vector3(-0.78, 0.078, slotZ - 0.37)
+            ]),
+            new THREE.LineBasicMaterial({ color: borderColor, transparent: true, opacity: isChargingSlot ? 0.95 : 0.58 })
+        );
+        group.add(border);
+
+        if (!isChargingSlot) {
+            for (let i = 0; i < 4; i += 1) {
+                const stopper = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.16, 0.035, 0.035),
+                    new THREE.MeshBasicMaterial({ color: 0x93c5fd, transparent: true, opacity: 0.78 })
+                );
+                stopper.position.set(-0.48 + i * 0.32, 0.095, slotZ - 0.43);
+                group.add(stopper);
+            }
+        }
+
+        const marker = new THREE.Mesh(
+            new THREE.BoxGeometry(isChargingSlot ? 0.42 : 0.24, 0.045, 0.08),
+            new THREE.MeshBasicMaterial({ color: isChargingSlot ? 0x51cf66 : 0x60a5fa, transparent: true, opacity: isChargingSlot ? 0.95 : 0.72 })
+        );
+        marker.position.set(0.46, 0.096, slotZ + 0.25);
+        group.add(marker);
+
+        return group;
+    }
+
+    function renderPileLights(evt) {
+        getPiles().forEach((pile) => {
+            const group = pilesLayer.getObjectByName(`pile-${pile.id}`);
+            if (!group) return;
+            const lamp = group.getObjectByName("statusLamp");
+            const halo = group.getObjectByName("faultHalo");
+            const isFault = pile.state === "fault" || (evt && evt[1] === "B" && evt[2] === pile.id);
+            lamp.material.color.set(isFault ? 0xff6b6b : pile.id.startsWith("F") ? 0x4dabf7 : 0x51cf66);
+            lamp.material.emissive.set(isFault ? 0xc92a2a : pile.id.startsWith("F") ? 0x1c7ed6 : 0x2b8a3e);
+            lamp.material.emissiveIntensity = isFault ? 2.4 : 1.35;
+            if (halo) halo.material.opacity = isFault ? 0.68 : 0;
+            group.scale.y = isFault ? 1.04 : 1;
+        });
+    }
+
+    function renderStaticCars(evt) {
+        staticCars.clear();
+        labelsLayer.clear();
+
+        getPiles().forEach((pile) => {
+            const base = pilePosition(pile.id);
+            [pile.current, ...pile.queue].slice(0, getPileSlotCapacity()).forEach((vehicle, slot) => {
+                if (!vehicle) return;
+                if (evt && evt[1] !== "B" && evt[2] === vehicle) return;
+                const isActiveFault = evt && evt[1] === "B" && evt[2] === pile.id;
+                const color = isActiveFault && slot === 0 ? "#ff8787" : pile.id.startsWith("F") ? "#74c0fc" : "#8ce99a";
+                const car = createCarModel(vehicle, color, slot === 0 ? 1 : 0.88, { lights: slot === 0, accent: slot === 0 });
+                car.position.set(base.x, 0.12, base.z + slotLocalZ(slot));
+                car.rotation.y = parkedCarRotation;
+                staticCars.add(car);
+                if (slot === 0) {
+                    const glow = createUnderGlow(isActiveFault ? 0xff6b6b : pile.id.startsWith("F") ? 0x4dabf7 : 0x51cf66, isActiveFault ? 0.42 : 0.3);
+                    glow.position.set(base.x, 0.072, base.z + slotLocalZ(slot));
+                    staticCars.add(glow);
+                }
+            });
+        });
+
+        renderPileLabels(evt);
+        renderWaitingCars(getWaitingFast(), waitingFastStartX, "#4dabf7", evt);
+        renderWaitingCars(getWaitingSlow(), waitingSlowStartX, "#51cf66", evt);
+        renderRedispatchCars(getRedispatchFast(), redispatchFastStartX, evt);
+        renderRedispatchCars(getRedispatchSlow(), redispatchSlowStartX, evt);
+    }
+
+    function renderWaitingCars(list, startX, color, evt) {
+        list.forEach((item, index) => {
+            if (evt && evt[1] !== "B" && evt[2] === item.id) return;
+            const car = createCarModel(item.id, color, 0.82, { lights: false, accent: false, queued: true });
+            car.position.set(startX + (index % 4) * waitingSlotGap, 0.12, waitingBaseZ + Math.floor(index / 4) * waitingRowGap);
+            car.rotation.y = waitingCarRotation;
+            staticCars.add(car);
+        });
+    }
+
+    function renderRedispatchCars(list, startX, evt) {
+        list.forEach((item, index) => {
+            if (evt && evt[1] !== "B" && evt[2] === item.id) return;
+            const car = createCarModel(item.id, "#ff8787", 0.8, { lights: false, accent: false, queued: true });
+            car.position.set(startX + (index % 4) * redispatchSlotGap, 0.12, redispatchBaseZ + Math.floor(index / 4) * redispatchRowGap);
+            car.rotation.y = waitingCarRotation;
+            staticCars.add(car);
+        });
+    }
+
+    function renderPileLabels(evt) {
+        getPiles().forEach((pile) => {
+            const base = pilePosition(pile.id);
+            const slots = [pile.current, ...pile.queue].slice(0, getPileSlotCapacity());
+            const occupied = slots.filter(Boolean).length;
+            const text = `${pile.id} ${occupied}/${getPileSlotCapacity()}`;
+            const subText = slots.map((vehicle) => vehicle || "空").join(" · ");
+            const color = pile.state === "fault" || (evt && evt[1] === "B" && evt[2] === pile.id)
+                ? "#ff6b6b"
+                : pile.id.startsWith("F") ? "#4dabf7" : "#51cf66";
+            const badge = makePileBadge(text, subText, color);
+            badge.position.set(base.x, 1.68, base.z);
+            labelsLayer.add(badge);
+        });
+    }
+
+    function slotLocalZ(slotIndex) {
+        const slotCount = Math.max(getPileSlotCapacity(), 1);
+        if (slotCount === 1) return -0.02;
+        const start = -1.28;
+        const end = 1.24;
+        const step = (end - start) / (slotCount - 1);
+        return start + Math.min(slotIndex, slotCount - 1) * step;
+    }
+
+    function createUnderGlow(color, opacity) {
+        const glow = new THREE.Mesh(
+            new THREE.RingGeometry(0.34, 0.54, 40),
+            new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide })
+        );
+        glow.rotation.x = -Math.PI / 2;
+        return glow;
+    }
+
+    function makePileBadge(title, subtitle, color) {
+        const labelCanvas = document.createElement("canvas");
+        const context = labelCanvas.getContext("2d");
+        labelCanvas.width = 384;
+        labelCanvas.height = 128;
+
+        context.fillStyle = "rgba(15, 23, 42, 0.88)";
+        roundRect(context, 18, 16, 348, 96, 22);
+        context.fill();
+
+        context.strokeStyle = color;
+        context.lineWidth = 3;
+        roundRect(context, 20, 18, 344, 92, 20);
+        context.stroke();
+
+        context.font = "800 30px Microsoft YaHei, Arial";
+        context.textAlign = "left";
+        context.textBaseline = "middle";
+        context.fillStyle = "#ffffff";
+        context.fillText(title, 42, 48);
+
+        context.font = "700 22px Microsoft YaHei, Arial";
+        context.fillStyle = "rgba(226, 232, 240, 0.92)";
+        context.fillText(subtitle, 42, 86);
+
+        const texture = new THREE.CanvasTexture(labelCanvas);
+        texture.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false }));
+        sprite.scale.set(1.8, 0.6, 1);
+        return sprite;
+    }
+
+    function startEventMotion(evt, index) {
+        if (routeLine) {
+            scene.remove(routeLine);
+            routeLine.geometry.dispose();
+        }
+
+        activeStartedAt = clock.getElapsedTime();
+        activeDuration = evt[1] === "B" ? 1.25 : evt[1] === "C" ? 2.65 : evt.isRealtime ? 3.15 : 2.65;
+        activeFinalRotation = null;
+        if (evt[1] === "B") {
+            activeCurve = null;
+            motionCar.visible = false;
+            return;
+        }
+
+        activeCurve = makeRoute(evt, index);
+        activeFinalRotation = eventFinalRotation(evt);
+        motionCar.visible = true;
+        motionCar.scale.setScalar(evt[1] === "A" && evt[4] !== "0" ? 0.82 : 1.12);
+        setCarColor(motionCar, eventColor(evt));
+
+        routeMaterial.color.set(evt[1] === "C" ? 0xf59f00 : evt[3] === "F" ? 0x4dabf7 : 0x51cf66);
+        routeLine = new THREE.Mesh(new THREE.TubeGeometry(activeCurve, 90, 0.028, 8, false), routeMaterial);
+        scene.add(routeLine);
+    }
+
+    function animateMotion() {
+        if (!activeCurve || !activeEvent) return;
+        const elapsed = clock.getElapsedTime() - activeStartedAt;
+        const progress = Math.min(elapsed / activeDuration, 1);
+        const eased = easeToParking(progress);
+        const point = activeCurve.getPoint(eased);
+        const tangent = activeCurve.getTangent(Math.min(eased + 0.01, 1));
+        const tangentRotation = Math.atan2(tangent.x, tangent.z);
+
+        motionCar.position.copy(point);
+        motionCar.position.y += activeEvent[1] === "B" ? Math.sin(elapsed * 18) * 0.025 : 0;
+        motionCar.rotation.y = activeFinalRotation === null
+            ? tangentRotation
+            : lerpAngle(tangentRotation, activeFinalRotation, smoothstep(0.62, 1, progress));
+
+        const lampPulse = 1 + Math.sin(clock.getElapsedTime() * 5) * 0.05;
+        pilesLayer.children.forEach((pile) => {
+            const isFaultPile = activeEvent[1] === "B" && pile.name.endsWith(activeEvent[2]);
+            pile.scale.setScalar(isFaultPile ? lampPulse : 1);
+        });
+    }
+
+    function animateCapacityPulse() {
+        const nowSeconds = clock.getElapsedTime();
+        const isActive = nowSeconds < capacityPulseUntil;
+        const boost = isActive ? 0.18 + Math.sin(nowSeconds * 8) * 0.08 : 0;
+        pilesLayer.traverse((object) => {
+            if (!object.isMesh || object.name !== "pileCapacityCell") return;
+            object.material.opacity = Math.min((object.userData.baseOpacity || 0.2) + boost, 0.62);
+        });
+        capacityLayer.traverse((object) => {
+            if (!object.isMesh || object.name !== "waitingCapacityCell") return;
+            object.material.opacity = Math.min((object.userData.baseOpacity || 0.18) + boost, 0.52);
+        });
+    }
+
+    function easeToParking(progress) {
+        if (progress <= 0) return 0;
+        if (progress >= 1) return 1;
+        if (progress < 0.72) {
+            return 0.86 * (1 - Math.pow(1 - progress / 0.72, 3));
+        }
+        const tail = (progress - 0.72) / 0.28;
+        return 0.86 + 0.14 * (1 - Math.pow(1 - tail, 4));
+    }
+
+    function eventFinalRotation(evt) {
+        const plan = window.dispatchRoutePlan;
+        if (plan && plan.finalRotation !== undefined && plan.finalRotation !== null) return plan.finalRotation;
+        const location = findVehicleLocation(evt[2]);
+        if (location) return location.rotation;
+        if (evt[1] === "A" && evt[4] !== "0") return waitingCarRotation;
+        return null;
+    }
+
+    function smoothstep(edge0, edge1, value) {
+        const x = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
+        return x * x * (3 - 2 * x);
+    }
+
+    function lerpAngle(from, to, amount) {
+        const delta = Math.atan2(Math.sin(to - from), Math.cos(to - from));
+        return from + delta * amount;
+    }
+
+    function buildRoutePlan(evt, currentSnapshot, previousSnapshotData, currentMapped, previousMapped) {
+        const vehicleId = evt[2];
+        const currentLocation = findVehicleLocationIn(vehicleId, currentMapped.piles, currentMapped.waitingFast, currentMapped.waitingSlow, currentMapped.redispatchFast, currentMapped.redispatchSlow);
+        const previousLocation = previousMapped
+            ? findVehicleLocationIn(vehicleId, previousMapped.piles, previousMapped.waitingFast, previousMapped.waitingSlow, previousMapped.redispatchFast, previousMapped.redispatchSlow)
+            : null;
+        const roadIn = routePoint(-6.55, laneZ);
+        const roadOut = routePoint(6.55, laneZ);
+
+        if (evt[1] === "B") {
+            const center = currentLocation?.position || previousLocation?.position || roadIn;
+            return {
+                kind: "fault",
+                points: [
+                    center,
+                    routePoint(center.x - 0.32, center.z - 0.2),
+                    routePoint(center.x + 0.32, center.z - 0.2),
+                    center
+                ],
+                finalRotation: parkedCarRotation,
+                targetZone: "pile",
+                raw: evt
+            };
+        }
+
+        const isCancel = evt[1] === "A" && evt[4] === "0";
+        const startLocation = previousLocation || (isCancel ? currentLocation : null);
+        const targetLocation = isCancel ? null : currentLocation;
+        const startZone = startLocation?.zone || "road";
+        const targetZone = targetLocation?.zone || "road";
+        const start = startLocation?.position || roadIn;
+        const target = targetLocation?.position || roadOut;
+
+        return {
+            kind: isCancel ? "exit" : "move",
+            points: buildTransitionPoints(start, startZone, target, targetZone, isCancel),
+            finalRotation: targetZone === "pile" ? parkedCarRotation : targetZone === "waiting" || targetZone === "redispatch" ? waitingCarRotation : null,
+            targetZone,
+            raw: evt
+        };
+    }
+
+    function buildTransitionPoints(start, startZone, target, targetZone, isCancel) {
+        const points = [start];
+        if (startZone === "waiting" || startZone === "redispatch") {
+            points.push(routePoint(start.x, startZone === "redispatch" ? redispatchBaseZ + 0.42 : waitingBaseZ + 0.62));
+        }
+        points.push(routePoint(start.x, laneZ));
+
+        if (isCancel || targetZone === "road") {
+            points.push(routePoint(Math.max(start.x + 1.15, 0.4), laneZ));
+            points.push(routePoint(6.55, laneZ));
+            return points;
+        }
+
+        const approachZ = targetZone === "pile" ? target.z + 1.18 : targetZone === "redispatch" ? redispatchBaseZ + 0.42 : waitingBaseZ + 0.72;
+        points.push(routePoint(target.x, laneZ));
+        if (targetZone === "waiting" || targetZone === "redispatch") {
+            points.push(routePoint(target.x, approachZ));
+            points.push(routePoint(target.x, target.z + 0.32));
+        } else if (targetZone === "pile") {
+            points.push(routePoint(target.x, approachZ));
+            points.push(routePoint(target.x, target.z + 0.58));
+        }
+        points.push(target);
+        return points;
+    }
+
+    function routePoint(x, z) {
+        return new THREE.Vector3(x, 0.16, z);
+    }
+
+    function makeRoute(evt, index) {
+        const currentMapped = {
+            piles: getPiles(),
+            waitingFast: getWaitingFast(),
+            waitingSlow: getWaitingSlow(),
+            redispatchFast: getRedispatchFast(),
+            redispatchSlow: getRedispatchSlow()
+        };
+        const previousMapped = {
+            piles: window.dispatchPreviousPiles || [],
+            waitingFast: window.dispatchPreviousWaitingFast || [],
+            waitingSlow: window.dispatchPreviousWaitingSlow || [],
+            redispatchFast: window.dispatchPreviousRedispatchFast || [],
+            redispatchSlow: window.dispatchPreviousRedispatchSlow || []
+        };
+        const plan = window.dispatchRoutePlan || buildRoutePlan(
+            evt,
+            null,
+            null,
+            currentMapped,
+            previousMapped
+        );
+        window.dispatchRoutePlan = plan;
+        return new THREE.CatmullRomCurve3(plan.points);
+    }
+
+    function findVehicleLocation(vehicleId) {
+        return findVehicleLocationIn(vehicleId, getPiles(), getWaitingFast(), getWaitingSlow(), getRedispatchFast(), getRedispatchSlow());
+    }
+
+    function findPreviousVehicleLocation(vehicleId) {
+        return findVehicleLocationIn(
+            vehicleId,
+            window.dispatchPreviousPiles || [],
+            window.dispatchPreviousWaitingFast || [],
+            window.dispatchPreviousWaitingSlow || [],
+            window.dispatchPreviousRedispatchFast || [],
+            window.dispatchPreviousRedispatchSlow || []
+        );
+    }
+
+    function findVehicleLocationIn(vehicleId, piles, waitingFast, waitingSlow, redispatchFast = [], redispatchSlow = []) {
+        for (const pile of piles) {
+            const base = pilePosition(pile.id);
+            const vehicles = [pile.current, ...pile.queue].slice(0, getPileSlotCapacity());
+            const slot = vehicles.findIndex((vehicle) => vehicle === vehicleId);
+            if (slot >= 0) {
+                return {
+                    zone: "pile",
+                    rotation: parkedCarRotation,
+                    position: new THREE.Vector3(base.x, 0.12, base.z + slotLocalZ(slot))
+                };
+            }
+        }
+
+        const waiting = [
+            ...waitingFast.map((car, index) => ({ car, index, startX: waitingFastStartX })),
+            ...waitingSlow.map((car, index) => ({ car, index, startX: waitingSlowStartX }))
+        ];
+        const found = waiting.find((item) => item.car.id === vehicleId);
+        if (found) {
+            return {
+                zone: "waiting",
+                rotation: waitingCarRotation,
+                position: new THREE.Vector3(
+                    found.startX + (found.index % 4) * waitingSlotGap,
+                    0.12,
+                    waitingBaseZ + Math.floor(found.index / 4) * waitingRowGap
+                )
+            };
+        }
+        const redispatch = [
+            ...redispatchFast.map((car, index) => ({ car, index, startX: redispatchFastStartX })),
+            ...redispatchSlow.map((car, index) => ({ car, index, startX: redispatchSlowStartX }))
+        ];
+        const redispatchFound = redispatch.find((item) => item.car.id === vehicleId);
+        if (!redispatchFound) return null;
+        return {
+            zone: "redispatch",
+            rotation: waitingCarRotation,
+            position: new THREE.Vector3(
+                redispatchFound.startX + (redispatchFound.index % 4) * redispatchSlotGap,
+                0.12,
+                redispatchBaseZ + Math.floor(redispatchFound.index / 4) * redispatchRowGap
+            )
+        };
+    }
+
+    function waitingStagingPosition(evt, eventIndex) {
+        const isFast = evt[3] === "F";
+        const startX = isFast ? waitingFastStartX : waitingSlowStartX;
+        const slotIndex = Math.abs(eventIndex) % 4;
+        return new THREE.Vector3(
+            startX + slotIndex * waitingSlotGap,
+            0.12,
+            waitingBaseZ + (isFast ? 0 : waitingRowGap)
+        );
+    }
+
+    function waitingSlotPosition(evt, eventIndex) {
+        const isFast = evt[3] === "F";
+        const list = isFast ? getWaitingFast() : getWaitingSlow();
+        const foundIndex = list.findIndex((car) => car.id === evt[2]);
+        const slotIndex = foundIndex >= 0 ? foundIndex : eventIndex % 4;
+        const startX = isFast ? waitingFastStartX : waitingSlowStartX;
+        return new THREE.Vector3(
+            startX + (slotIndex % 4) * waitingSlotGap,
+            0.12,
+            waitingBaseZ + Math.floor(slotIndex / 4) * waitingRowGap
+        );
+    }
+
+    function updateHud(evt, index) {
+        hudTitle.textContent = `${evt[0]} · ${describeEvent(evt)}`;
+        hudMeta.textContent = evt[1] === "R"
+            ? `10:50 后状态 · 当前时钟 ${evt[0]}，查看故障恢复、重调度队列和详单完成情况。`
+            : evt.isRealtime
+            ? `实时变更 · 车辆 ${evt[2]} 按前后快照差异沿路网开入目标车位，旧车保持原位。`
+            : `事件 ${index + 1}/${getEvents().length}，车辆 ${evt[2]} 沿路径回放；故障事件会点亮红色桩位并显示重调度。`;
+    }
+
+    function describeEvent(evt) {
+        if (evt[1] === "R") return evt[2];
+        if (evt[1] === "A" && evt[4] === "0") return `${evt[2]} 取消请求`;
+        if (evt[1] === "A") return `${evt[2]} 申请${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+        if (evt[1] === "C") return `${evt[2]} 改为${evt[3] === "F" ? "快充" : "慢充"} ${evt[4]} 度`;
+        return `${evt[2]} 故障 ${evt[4]} 分钟`;
+    }
+
+    function pilePosition(id) {
+        const cfg = (typeof window !== "undefined" && typeof window.getStationConfig === "function")
+                ? (window.getStationConfig() || {}) : {};
+        const fast = Math.max(Number(cfg.fastPileCount ?? 3), 0);
+        const slow = Math.max(Number(cfg.slowPileCount ?? 2), 0);
+        const order = [];
+        for (let i = 1; i <= fast; i++) order.push("F" + i);
+        for (let i = 1; i <= slow; i++) order.push("T" + i);
+        if (order.length === 0) order.push("F1", "F2", "F3", "T1", "T2");
+        const idx = order.indexOf(id);
+        const total = order.length;
+        const spacing = total > 1 ? Math.min(2.72, 10.9 / (total - 1)) : 0;
+        const startX = total > 1 ? -spacing * (total - 1) / 2 : 0;
+        const safeIndex = idx >= 0 ? idx : 0;
+        return { x: startX + safeIndex * spacing, z: chargingZ };
+    }
+
+    function eventColor(evt) {
+        if (evt[1] === "B") return "#ff6b6b";
+        if (evt[1] === "C") return "#f59f00";
+        return evt[3] === "F" ? "#4dabf7" : "#51cf66";
+    }
+
+    function createCarModel(label, color, scale = 1, options = {}) {
+        const settings = { label: false, lights: true, accent: true, queued: false, ...options };
+        const group = new THREE.Group();
+        group.userData.carParts = [];
+
+        // 更接近真实汽车漆的金属漆 + 高光车窗
+        const bodyMat = new THREE.MeshStandardMaterial({
+            color,
+            roughness: settings.queued ? 0.5 : 0.24,
+            metalness: settings.queued ? 0.18 : 0.62
+        });
+        const glassMat = new THREE.MeshStandardMaterial({
+            color: 0x9ec5e6,
+            roughness: 0.08,
+            metalness: 0.18,
+            transparent: true,
+            opacity: settings.queued ? 0.66 : 0.9
+        });
+        const tireMat = new THREE.MeshStandardMaterial({ color: settings.queued ? 0x243244 : 0x111827, roughness: 0.85 });
+        const hubMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.32, metalness: 0.78 });
+        const grilleMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.6, metalness: 0.4 });
+        const lightMat = new THREE.MeshBasicMaterial({ color: 0xe0f2fe });
+        const tailMat = new THREE.MeshBasicMaterial({ color: 0xff6b6b });
+
+        const body = new THREE.Mesh(createSportsBodyGeometry(0.86, 0.32, 1.52), bodyMat);
+        body.position.y = 0.18;
+        body.castShadow = true;
+        group.add(body);
+        group.userData.carParts.push(body);
+
+        const cabin = new THREE.Mesh(createSportsCabinGeometry(0.52, 0.27, 0.58), glassMat);
+        cabin.position.set(0, 0.44, -0.04);
+        cabin.castShadow = true;
+        group.add(cabin);
+
+        const splitter = new THREE.Mesh(new THREE.BoxGeometry(0.78, 0.035, 0.08), bodyMat);
+        splitter.position.set(0, 0.18, -0.82);
+        splitter.castShadow = true;
+        group.add(splitter);
+        group.userData.carParts.push(splitter);
+
+        const spoiler = new THREE.Mesh(new THREE.BoxGeometry(0.68, 0.055, 0.08), bodyMat);
+        spoiler.position.set(0, 0.48, 0.72);
+        spoiler.castShadow = true;
+        group.add(spoiler);
+        group.userData.carParts.push(spoiler);
+
+        [[-0.45, 0.16, -0.46], [0.45, 0.16, -0.46], [-0.45, 0.16, 0.48], [0.45, 0.16, 0.48]].forEach((pos) => {
+            const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.085, 22), tireMat);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(pos[0], pos[1], pos[2]);
+            group.add(wheel);
+            // 银色五辐轮毂：嵌在轮胎中心
+            const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.092, 18), hubMat);
+            hub.rotation.z = Math.PI / 2;
+            hub.position.set(pos[0] + (pos[0] > 0 ? 0.005 : -0.005), pos[1], pos[2]);
+            group.add(hub);
+        });
+
+        // 前脸进气格栅，让车头更立体
+        const grille = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.08, 0.018), grilleMat);
+        grille.position.set(0, 0.2, -0.78);
+        group.add(grille);
+
+        if (settings.lights) {
+            [[-0.22, -0.785], [0.22, -0.785]].forEach((pos) => {
+                const headlight = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.055, 0.022), lightMat);
+                headlight.position.set(pos[0], 0.27, pos[1]);
+                group.add(headlight);
+            });
+
+            [[-0.24, 0.785], [0.24, 0.785]].forEach((pos) => {
+                const taillight = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.052, 0.022), tailMat);
+                taillight.position.set(pos[0], 0.25, pos[1]);
+                group.add(taillight);
+            });
+        }
+
+        if (settings.accent) {
+            const stripe = new THREE.Mesh(
+                new THREE.BoxGeometry(0.08, 0.018, 1.22),
+                new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.5 })
+            );
+            stripe.position.set(0, 0.39, -0.06);
+            group.add(stripe);
+        }
+
+        if (settings.label) {
+            const sprite = makeLabel(label, "rgba(15, 23, 42, 0.9)", "#ffffff", 0.82);
+            sprite.name = "carLabel";
+            sprite.position.set(0, 0.92, 0);
+            group.add(sprite);
+        }
+
+        group.scale.setScalar(scale);
+        return group;
+    }
+
+    function createSportsBodyGeometry(width, height, length) {
+        const w = width / 2;
+        const l = length / 2;
+        const y0 = 0;
+        const yFront = height * 0.48;
+        const yMid = height;
+        const yRear = height * 0.72;
+        const vertices = new Float32Array([
+            -w, y0, -l,  w, y0, -l,  w, y0, l, -w, y0, l,
+            -w * 0.72, yFront, -l,  w * 0.72, yFront, -l,
+             w * 0.92, yMid, -l * 0.08, -w * 0.92, yMid, -l * 0.08,
+             w * 0.78, yRear, l, -w * 0.78, yRear, l
+        ]);
+        const indices = [
+            0, 1, 2, 0, 2, 3,
+            0, 4, 5, 0, 5, 1,
+            4, 7, 6, 4, 6, 5,
+            7, 9, 8, 7, 8, 6,
+            9, 3, 2, 9, 2, 8,
+            0, 3, 9, 0, 9, 4,
+            1, 5, 6, 1, 6, 2,
+            2, 6, 8
+        ];
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    function createSportsCabinGeometry(width, height, length) {
+        const w = width / 2;
+        const l = length / 2;
+        const vertices = new Float32Array([
+            -w, 0, -l, w, 0, -l, w, 0, l, -w, 0, l,
+            -w * 0.58, height, -l * 0.35, w * 0.58, height, -l * 0.35,
+            w * 0.5, height * 0.78, l * 0.48, -w * 0.5, height * 0.78, l * 0.48
+        ]);
+        const indices = [
+            0, 1, 2, 0, 2, 3,
+            0, 4, 5, 0, 5, 1,
+            4, 7, 6, 4, 6, 5,
+            7, 3, 2, 7, 2, 6,
+            0, 3, 7, 0, 7, 4,
+            1, 5, 6, 1, 6, 2
+        ];
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute("position", new THREE.BufferAttribute(vertices, 3));
+        geometry.setIndex(indices);
+        geometry.computeVertexNormals();
+        return geometry;
+    }
+
+    function setCarColor(car, color) {
+        car.userData.carParts.forEach((part) => part.material.color.set(color));
+    }
+
+    function setCarLabel(car, label) {
+        const oldLabel = car.getObjectByName("carLabel");
+        if (oldLabel) car.remove(oldLabel);
+        const sprite = makeLabel(label, "rgba(15, 23, 42, 0.9)", "#ffffff", 0.82);
+        sprite.name = "carLabel";
+        sprite.position.set(0, 0.9, 0);
+        car.add(sprite);
+    }
+
+    function makeGroundLabel(text, background, color, width = 1, height = 0.3, fontSize = 28) {
+        const labelCanvas = document.createElement("canvas");
+        const context = labelCanvas.getContext("2d");
+        labelCanvas.width = 256;
+        labelCanvas.height = 96;
+        context.fillStyle = background;
+        roundRect(context, 10, 16, 236, 60, 18);
+        context.fill();
+        context.font = `800 ${fontSize}px Microsoft YaHei, Arial`;
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillStyle = color;
+        context.fillText(text, 128, 47);
+
+        const texture = new THREE.CanvasTexture(labelCanvas);
+        texture.minFilter = THREE.LinearFilter;
+        const mesh = new THREE.Mesh(
+            new THREE.PlaneGeometry(width, height),
+            new THREE.MeshBasicMaterial({ map: texture, transparent: true, depthWrite: false })
+        );
+        mesh.rotation.x = -Math.PI / 2;
+        return mesh;
+    }
+
+    function makeLabel(text, background, color, size = 1) {
+        const labelCanvas = document.createElement("canvas");
+        const context = labelCanvas.getContext("2d");
+        labelCanvas.width = 256;
+        labelCanvas.height = 80;
+        context.fillStyle = background;
+        roundRect(context, 12, 14, 232, 48, 18);
+        context.fill();
+        context.font = "800 32px Microsoft YaHei, Arial";
+        context.textAlign = "center";
+        context.textBaseline = "middle";
+        context.fillStyle = color;
+        context.fillText(text, 128, 39);
+
+        const texture = new THREE.CanvasTexture(labelCanvas);
+        texture.minFilter = THREE.LinearFilter;
+        const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true }));
+        sprite.scale.set(1.08 * size, 0.34 * size, 1);
+        return sprite;
+    }
+
+    function roundRect(context, x, y, width, height, radius) {
+        context.beginPath();
+        context.moveTo(x + radius, y);
+        context.arcTo(x + width, y, x + width, y + height, radius);
+        context.arcTo(x + width, y + height, x, y + height, radius);
+        context.arcTo(x, y + height, x, y, radius);
+        context.arcTo(x, y, x + width, y, radius);
+        context.closePath();
+    }
+
+    function getEvents() {
+        return window.dispatchEvents || [];
+    }
+
+    function getPiles() {
+        return window.dispatchPiles || [];
+    }
+
+    function getWaitingFast() {
+        return window.dispatchWaitingFast || [];
+    }
+
+    function getWaitingSlow() {
+        return window.dispatchWaitingSlow || [];
+    }
+
+    function getRedispatchFast() {
+        return window.dispatchRedispatchFast || [];
+    }
+
+    function getRedispatchSlow() {
+        return window.dispatchRedispatchSlow || [];
+    }
+
+    function getStationConfig() {
+        return window.dispatchStationConfig || DEFAULT_STATION_CONFIG;
+    }
+
+    function getPileSlotCapacity() {
+        return Number(getStationConfig().pileSlotCapacity || 3);
+    }
+
+    function getWaitingCapacity() {
+        return Number(getStationConfig().waitingCapacity || 10);
+    }
+}
+</script>
+
+</body>
+</html>

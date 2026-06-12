@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>充电申请 - 智能充电桩调度计费系统</title>
+<link rel="stylesheet" href="common.css">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+.car-hero {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 18px;
+    margin-bottom: 18px;
+    padding: 16px 22px;
+    align-items: stretch;
+}
+.car-hero h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -0.022em; }
+.car-hero .sub { color: var(--muted); font-size: 13px; line-height: 1.55; }
+.car-hero .stage {
+    height: 180px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    background: radial-gradient(ellipse at center 75%, rgba(135,167,179,0.20) 0%, transparent 65%);
+}
+.car-hero .stage model-viewer { width: 100%; height: 100%; background: transparent; --poster-color: transparent; }
+.car-hero .credit { margin-top: 8px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--subtle); }
+.car-hero .credit b { color: var(--celadon-deep); font-weight: 600; }
+@media (max-width: 880px) { .car-hero { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统</div>
+    <div class="menu">
+        <a href="#" class="active">充电申请</a>
+        <a href="2_queue_status.html">队列与充电</a>
+        <a href="3_my_bills.html">我的账单</a>
+    </div>
+    <div class="user"><div class="avatar">车</div><span id="navVehicle">车辆端</span></div>
+</nav>
+
+<main class="container">
+    <h1 class="page-title">新建充电请求</h1>
+
+    <section class="car-hero card">
+        <div>
+            <h2>你的座驾，等待补能</h2>
+            <div class="sub">在下方提交充电请求，系统将自动分配排队号 (F=快充 / T=慢充) 并按"最短完成时长"调度到最优桩位。</div>
+            <div class="credit">KhronosGroup <b>ToyCar</b> · glTF 2.0 reference</div>
+        </div>
+        <div class="stage">
+            <model-viewer
+                src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ToyCar/glTF-Binary/ToyCar.glb"
+                alt="你的车"
+                camera-orbit="0deg 60deg auto"
+                field-of-view="32deg"
+                auto-rotate auto-rotate-delay="0" rotation-per-second="18deg"
+                exposure="1.20"
+                shadow-intensity="0.9"
+                environment-image="neutral"
+                interaction-prompt="none"
+                disable-zoom>
+            </model-viewer>
+        </div>
+    </section>
+
+    <div class="info-grid">
+        <div class="info-card"><div class="label">等候区空位</div><div class="value" id="waitingFree">-<span class="unit">/ 10</span></div></div>
+        <div class="info-card"><div class="label">快充等待</div><div class="value" id="fastWaiting">-<span class="unit">辆</span></div></div>
+        <div class="info-card"><div class="label">慢充等待</div><div class="value" id="slowWaiting">-<span class="unit">辆</span></div></div>
+        <div class="info-card"><div class="label">系统时间</div><div class="value" id="stationTime" style="font-size:20px;">-</div></div>
+    </div>
+
+    <section class="card">
+        <div class="card-title">
+            <span>充电参数</span>
+            <span class="tag tag-info">提交后由服务器生成 F/T 排队号</span>
+        </div>
+        <form id="requestForm">
+            <div class="form-row">
+                <label for="vehicleId">车辆编号</label>
+                <div class="form-ctl"><input id="vehicleId" class="input" value="V100" required maxlength="32"></div>
+            </div>
+            <div class="form-row">
+                <label>充电模式</label>
+                <div class="form-ctl">
+                    <div class="radio-group">
+                        <label><input type="radio" name="mode" value="F" checked> 快充 30 度/小时</label>
+                        <label><input type="radio" name="mode" value="T"> 慢充 10 度/小时</label>
+                    </div>
+                </div>
+            </div>
+            <div class="form-row">
+                <label for="amountKwh">请求电量</label>
+                <div class="form-ctl"><input id="amountKwh" type="number" class="input" min="0.1" step="0.1" value="30" required></div>
+            </div>
+            <div class="form-row">
+                <label for="batteryCapacity">电池总容量</label>
+                <div class="form-ctl"><input id="batteryCapacity" type="number" class="input" min="0" step="0.1" value="60" placeholder="选填，单位：度"></div>
+            </div>
+            <div class="form-row">
+                <label></label>
+                <div class="form-ctl btn-group">
+                    <button class="btn btn-primary" type="submit">提交充电请求</button>
+                    <button class="btn btn-default" type="button" id="resetBtn">重置</button>
+                    <a class="btn btn-default" href="2_queue_status.html" style="text-decoration:none;display:inline-flex;align-items:center;">查看状态</a>
+                </div>
+            </div>
+        </form>
+        <div id="message" class="tag tag-info" style="display:none;margin-top:4px;"></div>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>费用预估</span></div>
+        <div class="info-grid" style="grid-template-columns: repeat(3, minmax(0, 1fr));">
+            <div class="info-card"><div class="label">预计充电时长</div><div class="value" id="estimateDuration">1.0<span class="unit">小时</span></div></div>
+            <div class="info-card"><div class="label">服务费</div><div class="value" id="estimateService">24.00<span class="unit">元</span></div></div>
+            <div class="info-card"><div class="label">计费说明</div><div class="value" style="font-size:18px;">峰平谷<span class="unit">+ 0.8元/度</span></div></div>
+        </div>
+    </section>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect()) { throw new Error("auth required"); }
+const API_BASE = EVAuth.apiBase();
+const $ = (id) => document.getElementById(id);
+
+function savedVehicle() {
+    return EVAuth.currentAuth().vehicleId || "V100";
+}
+
+function setMessage(text, kind = "info") {
+    const box = $("message");
+    box.style.display = "inline-flex";
+    box.className = `tag tag-${kind}`;
+    box.textContent = text;
+}
+
+function modeLabel(code) {
+    return code === "F" ? "快充" : "慢充";
+}
+
+function refreshEstimate() {
+    const mode = document.querySelector("input[name='mode']:checked").value;
+    const amount = Number($("amountKwh").value || 0);
+    const power = mode === "F" ? 30 : 10;
+    $("estimateDuration").innerHTML = `${(amount / power).toFixed(1)}<span class="unit">小时</span>`;
+    $("estimateService").innerHTML = `${(amount * 0.8).toFixed(2)}<span class="unit">元</span>`;
+}
+
+async function loadSnapshot() {
+    try {
+        const data = await api("/api/station/overview");
+        const waiting = data.waitingFast.length + data.waitingSlow.length;
+        $("waitingFree").innerHTML = `${10 - waiting}<span class="unit">/ 10</span>`;
+        $("fastWaiting").innerHTML = `${data.waitingFast.length}<span class="unit">辆</span>`;
+        $("slowWaiting").innerHTML = `${data.waitingSlow.length}<span class="unit">辆</span>`;
+        $("stationTime").textContent = String(data.now || "").replace("T", " ").slice(11, 16);
+    } catch (error) {
+        setMessage(`后端未连接：${error.message}`, "warning");
+    }
+}
+
+$("vehicleId").value = savedVehicle();
+$("navVehicle").textContent = `车辆 ${$("vehicleId").value}`;
+refreshEstimate();
+loadSnapshot();
+
+document.querySelectorAll("input[name='mode']").forEach((input) => input.addEventListener("change", refreshEstimate));
+$("amountKwh").addEventListener("input", refreshEstimate);
+$("vehicleId").addEventListener("input", () => {
+    $("navVehicle").textContent = `车辆 ${$("vehicleId").value || "-"}`;
+});
+
+$("resetBtn").addEventListener("click", () => {
+    $("amountKwh").value = "30";
+    $("batteryCapacity").value = "60";
+    document.querySelector("input[name='mode'][value='F']").checked = true;
+    refreshEstimate();
+});
+
+$("requestForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const vehicleId = $("vehicleId").value.trim();
+    const mode = document.querySelector("input[name='mode']:checked").value;
+    const amountKwh = Number($("amountKwh").value);
+    const batteryCapacityRaw = $("batteryCapacity")?.value;
+    const batteryCapacity = batteryCapacityRaw === "" || batteryCapacityRaw == null ? null : Number(batteryCapacityRaw);
+    localStorage.setItem("ev.vehicleId", vehicleId);
+    try {
+        const request = await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/requests`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ mode, amountKwh, batteryCapacity })
+        });
+        setMessage(`已提交 ${modeLabel(mode)} ${amountKwh} 度，请求号 ${request.queueNo}，当前状态 ${request.status}`, "success");
+        await loadSnapshot();
+    } catch (error) {
+        setMessage(error.message, "danger");
+    }
+});
+</script>
+</body>
+</html>

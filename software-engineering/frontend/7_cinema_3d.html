@@ -1,0 +1,1681 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>院线 3D 实时调度 · 智能充电桩调度计费系统</title>
+<link rel="stylesheet" href="common.css">
+<style>
+/* 7_cinema_3d · 暗色液态玻璃 · 莫兰迪强调色版（方案 G 的 dark variant） */
+
+/* Morandi accents (dark-mode tuned) */
+:root {
+    --m-celadon: #87A7B3;
+    --m-celadon-soft: #B7CCD4;
+    --m-sage: #9BD3A5;
+    --m-sage-soft: #B5C4B1;
+    --m-gold: #C2A06A;
+    --m-gold-soft: #DDB892;
+    --m-rust: #E89B8A;
+    --m-rust-soft: #ECC7C2;
+    --m-violet: #B594C4;
+    --m-violet-soft: #C7BCD0;
+    --m-ink: #F5F2EB;        /* 莫兰迪暖白文字 */
+    --m-ink-soft: rgba(245,242,235,0.74);
+    --m-ink-muted: rgba(245,242,235,0.48);
+}
+
+html, body {
+    margin: 0; height: 100%; overflow: hidden;
+    background: #0E1219;
+    color: var(--m-ink);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
+    font-feature-settings: "tnum", "kern";
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* 深色舞台：navy → 墨灰渐变（保留 3D 沉浸感） */
+.cinema-stage {
+    position: fixed; inset: 0;
+    background:
+        radial-gradient(ellipse 60% 40% at 50% 15%, rgba(135,167,179,0.18) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 80% 85%, rgba(232,155,138,0.10) 0%, transparent 55%),
+        radial-gradient(ellipse 50% 35% at 20% 80%, rgba(155,138,163,0.10) 0%, transparent 55%),
+        linear-gradient(180deg, #1A2230 0%, #0E1219 50%, #0A0E14 100%);
+}
+#cinemaCanvas { display: block; width: 100%; height: 100%; }
+
+/* 暗色液态玻璃 HUD */
+.hud {
+    position: absolute;
+    padding: 14px 18px;
+    background: rgba(30, 38, 52, 0.55);
+    border: 1px solid transparent;
+    border-radius: 18px;
+    color: var(--m-ink);
+    -webkit-backdrop-filter: blur(28px) saturate(165%);
+    backdrop-filter:         blur(28px) saturate(165%);
+    box-shadow:
+        0 1px 1px rgba(255,255,255,0.08) inset,
+        0 -1px 1px rgba(0,0,0,0.25) inset,
+        0 12px 36px -8px rgba(0,0,0,0.55);
+    font-size: 13px;
+    line-height: 1.55;
+    pointer-events: auto;
+}
+/* 玻璃镀膜边 */
+.hud::after {
+    content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1px;
+    background: linear-gradient(135deg,
+        rgba(183,204,212,0.55) 0%,
+        rgba(183,204,212,0.10) 28%,
+        rgba(0,0,0,0.05) 55%,
+        rgba(199,184,161,0.15) 78%,
+        rgba(183,204,212,0.42) 100%);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* 顶部高光 */
+.hud::before {
+    content: ""; position: absolute; top: 1px; left: 18%; right: 18%; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.55), transparent);
+    opacity: 0.6; z-index: 2; pointer-events: none;
+}
+
+.hud .kicker {
+    color: var(--m-celadon-soft);
+    font-size: 11px; font-weight: 700; letter-spacing: 0.14em;
+    text-transform: uppercase; margin-bottom: 4px;
+}
+.hud .title { font-size: 17px; font-weight: 700; color: var(--m-ink); letter-spacing: -0.015em; }
+.hud .meta { color: var(--m-ink-soft); margin-top: 4px; }
+
+.hud-tl { top: 24px; left: 24px; max-width: 360px; }
+.hud-tr { top: 24px; right: 24px; }
+.hud-bl { bottom: 24px; left: 24px; min-width: 320px; max-width: 380px; }
+.hud-br { bottom: 24px; right: 24px; max-width: 260px; }
+
+.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 10px; }
+.stat .lbl { font-size: 10px; color: var(--m-ink-muted); font-weight: 590; letter-spacing: 0.04em; }
+.stat .val {
+    font-size: 22px; font-weight: 700; color: var(--m-ink);
+    letter-spacing: -0.022em; line-height: 1.05;
+    margin-top: 2px;
+    font-feature-settings: "tnum";
+}
+.stat.charging .val { color: var(--m-celadon-soft); }
+.stat.waiting .val { color: var(--m-gold-soft); }
+.stat.fault .val   { color: var(--m-rust); }
+.stat.done .val    { color: var(--m-sage); }
+
+.event-feed { max-height: 200px; overflow: hidden; }
+.event-feed .row {
+    padding: 7px 0;
+    border-top: 1px dashed rgba(183,204,212,0.18);
+    font-size: 12px; color: var(--m-ink-soft);
+}
+.event-feed .row:first-child { border-top: none; }
+.event-feed .row .tag {
+    display: inline-block; padding: 2px 9px; border-radius: 999px;
+    font-size: 10px; font-weight: 700; margin-right: 6px; letter-spacing: 0.04em;
+}
+/* 事件 tag · 暗色莫兰迪：低对比但语义清晰 */
+.tag-evt-REQ   { background: rgba(135,167,179,0.18); color: var(--m-celadon-soft); border: 1px solid rgba(135,167,179,0.30); }
+.tag-evt-CHG   { background: rgba(155,211,165,0.16); color: var(--m-sage); border: 1px solid rgba(155,211,165,0.28); }
+.tag-evt-PAY   { background: rgba(181,148,196,0.18); color: var(--m-violet-soft); border: 1px solid rgba(181,148,196,0.30); }
+.tag-evt-FAULT { background: rgba(232,155,138,0.18); color: var(--m-rust-soft); border: 1px solid rgba(232,155,138,0.32); }
+.tag-evt-CFG   { background: rgba(194,160,106,0.16); color: var(--m-gold-soft); border: 1px solid rgba(194,160,106,0.28); }
+.tag-evt-INFO  { background: rgba(245,242,235,0.10); color: var(--m-ink-muted); border: 1px solid rgba(245,242,235,0.18); }
+
+.legend { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; margin-top: 8px; font-size: 12px; color: var(--m-ink-soft); }
+.legend .dot { display: inline-block; width: 11px; height: 11px; border-radius: 50%; vertical-align: middle; margin-right: 6px; }
+/* dot 颜色保留 3D 场景里同色高亮（青瓷/艾绿/珊瑚红/淡紫） */
+.dot-fast  { background: var(--m-celadon); box-shadow: 0 0 10px var(--m-celadon); }
+.dot-slow  { background: var(--m-sage);    box-shadow: 0 0 10px var(--m-sage); }
+.dot-fault { background: var(--m-rust);    box-shadow: 0 0 10px var(--m-rust); }
+.dot-paid  { background: var(--m-violet);  box-shadow: 0 0 10px var(--m-violet); }
+.dot-redispatch { background: var(--m-gold); box-shadow: 0 0 10px var(--m-gold); }
+
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.btn-row .pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(183,204,212,0.25);
+    color: var(--m-ink); padding: 6px 14px; border-radius: 999px;
+    cursor: pointer; font-size: 12px; font-weight: 590;
+    letter-spacing: -0.003em;
+    transition: all 0.18s;
+    text-decoration: none;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.12);
+}
+.btn-row .pill:hover {
+    background: rgba(135,167,179,0.18);
+    border-color: var(--m-celadon);
+    color: var(--m-ink);
+    transform: translateY(-1px);
+}
+.btn-row .pill.danger {
+    color: var(--m-rust);
+    border-color: rgba(232,155,138,0.40);
+}
+.btn-row .pill.danger:hover {
+    background: rgba(232,155,138,0.18);
+    color: var(--m-rust-soft);
+}
+
+.asset-status { font-size: 11px; color: var(--m-ink-muted); margin-top: 6px; line-height: 1.7; }
+.asset-status code {
+    background: rgba(135,167,179,0.16);
+    padding: 1px 6px; border-radius: 4px;
+    color: var(--m-celadon-soft); font-size: 10px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+}
+
+.loader-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(14, 18, 25, 0.88);
+    color: var(--m-celadon-soft);
+    font-size: 17px; font-weight: 590;
+    letter-spacing: -0.005em;
+    z-index: 50;
+    transition: opacity 0.6s;
+}
+.loader-overlay.hidden { opacity: 0; pointer-events: none; }
+.spinner {
+    width: 32px; height: 32px;
+    border: 3px solid rgba(135,167,179,0.20);
+    border-top-color: var(--m-celadon);
+    border-radius: 50%; animation: spin 0.9s linear infinite;
+    margin-right: 12px; display: inline-block; vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.err-banner {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px;
+    background: rgba(70, 35, 30, 0.85);
+    color: var(--m-rust-soft);
+    border-radius: 999px; font-size: 13px;
+    border: 1px solid rgba(232,155,138,0.45);
+    display: none; z-index: 100;
+    -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+}
+.err-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="cinema-stage">
+    <canvas id="cinemaCanvas"></canvas>
+
+    <div class="loader-overlay" id="loader">
+        <span class="spinner"></span>
+        <span id="loaderText">正在加载 3D 资源…</span>
+    </div>
+
+    <div class="err-banner" id="errBanner"></div>
+
+    <div class="hud hud-tl">
+        <div class="kicker">院线 3D · 实时调度</div>
+        <div class="title" id="stationTitle">充电站 · ——</div>
+        <div class="meta" id="stationMeta">系统时间 ——</div>
+        <div class="stats">
+            <div class="stat charging"><div class="lbl">充电中</div><div class="val" id="cntCharging">0</div></div>
+            <div class="stat waiting"><div class="lbl">桩内+等候</div><div class="val" id="cntWaiting">0</div></div>
+            <div class="stat fault"><div class="lbl">故障桩</div><div class="val" id="cntFault">0</div></div>
+            <div class="stat done"><div class="lbl">已完成</div><div class="val" id="cntDone">0</div></div>
+        </div>
+        <div class="asset-status" id="assetStatus">资源加载中…</div>
+    </div>
+
+    <div class="hud hud-tr">
+        <div class="btn-row">
+            <a class="pill" href="4_admin_piles.html">← 桩看板</a>
+            <a class="pill" href="5_admin_queue.html">调度沙盘</a>
+            <a class="pill" href="6_admin_report.html">报表</a>
+            <button class="pill" id="btnAutoRotate">自动公转</button>
+            <button class="pill" id="btnRefresh">刷新</button>
+            <button class="pill danger" id="btnLogout">登出</button>
+        </div>
+        <div class="btn-row" style="margin-top:8px;border-top:1px dashed rgba(183,204,212,0.20);padding-top:8px;">
+            <button class="pill" id="btnPlay" style="background:rgba(181,148,196,0.18);border-color:rgba(181,148,196,0.45);color:var(--m-violet-soft);">▶ 播放验收</button>
+            <button class="pill" id="btnStep" style="background:rgba(135,167,179,0.18);border-color:rgba(135,167,179,0.45);color:var(--m-celadon-soft);">⤳ 下一事件</button>
+            <button class="pill" id="btnReset" style="background:rgba(194,160,106,0.18);border-color:rgba(194,160,106,0.45);color:var(--m-gold-soft);">⟲ 重置 06:00</button>
+        </div>
+        <div id="playbackHint" style="font-size:11px;color:var(--m-ink-muted);margin-top:6px;line-height:1.5;">
+            ⚠ 回放会推进后端时钟，会影响其他管理员页。
+            <span id="playbackProgress" style="display:block;color:var(--m-ink-soft);margin-top:2px;">事件 — / 33 · 待开始</span>
+        </div>
+    </div>
+
+    <div class="hud hud-bl">
+        <div class="kicker">实时事件流</div>
+        <div class="title">最近 8 条</div>
+        <div class="event-feed" id="eventFeed"><div class="row"><span class="tag tag-evt-INFO">INFO</span>等待后端事件…</div></div>
+    </div>
+
+    <div class="hud hud-br">
+        <div class="kicker">图例</div>
+        <div class="legend">
+            <div><span class="dot dot-fast"></span>快充车 / 桩</div>
+            <div><span class="dot dot-slow"></span>慢充车 / 桩</div>
+            <div><span class="dot dot-fault"></span>故障桩</div>
+            <div><span class="dot dot-redispatch"></span>故障重调度车</div>
+        </div>
+        <div class="asset-status" style="margin-top:10px;">
+            <code>?fast=1</code> 关 Bloom<br/>
+            <code>?nocdn=1</code> 强制 primitive
+        </div>
+    </div>
+</div>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect("ADMIN")) { throw new Error("admin required"); }
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.164.1/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/"
+  }
+}
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { EffectComposer } from "three/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "three/addons/postprocessing/RenderPass.js";
+import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
+
+// =========================================================================
+// 0) URL flags
+// =========================================================================
+const params = new URLSearchParams(location.search);
+const FAST_MODE = params.has("fast");
+const NO_CDN = params.has("nocdn");
+
+// =========================================================================
+// 1) Layout constants — kept consistent with 5_admin_queue.html so the
+//    audience sees the same spatial logic as the dispatch sandbox.
+// =========================================================================
+const chargingZ = -1.82;
+const waitingFastStartX = -5.42;
+const waitingSlowStartX = -0.55;
+const waitingSlotGap = 1.28;
+const waitingRowGap = 0.62;
+const waitingBaseZ = 1.02;
+const redispatchFastStartX = -5.42;
+const redispatchSlowStartX = -0.55;
+const redispatchSlotGap = 1.28;
+const redispatchRowGap = 0.56;
+const redispatchBaseZ = 3.18;
+const parkedCarRotation = Math.PI / 2;
+const waitingCarRotation = Math.PI / 2;
+
+// =========================================================================
+// 2) DOM refs
+// =========================================================================
+const canvas = document.getElementById("cinemaCanvas");
+const loader = document.getElementById("loader");
+const loaderText = document.getElementById("loaderText");
+const errBanner = document.getElementById("errBanner");
+const assetStatusEl = document.getElementById("assetStatus");
+const stationTitleEl = document.getElementById("stationTitle");
+const stationMetaEl = document.getElementById("stationMeta");
+const eventFeedEl = document.getElementById("eventFeed");
+const counts = {
+    charging: document.getElementById("cntCharging"),
+    waiting: document.getElementById("cntWaiting"),
+    fault: document.getElementById("cntFault"),
+    done: document.getElementById("cntDone")
+};
+function showErr(msg) {
+    errBanner.textContent = msg;
+    errBanner.classList.add("show");
+    clearTimeout(showErr._t);
+    showErr._t = setTimeout(() => errBanner.classList.remove("show"), 5000);
+}
+function setLoader(text, hide = false) {
+    if (text) loaderText.textContent = text;
+    loader.classList.toggle("hidden", hide);
+}
+function setAssetStatus(map) {
+    const lines = Object.entries(map).map(([k, v]) =>
+        `<strong>${k}</strong>: <code>${v}</code>`).join("<br/>");
+    assetStatusEl.innerHTML = lines;
+}
+
+// =========================================================================
+// 3) Three.js core: renderer + scene + camera
+// =========================================================================
+const renderer = new THREE.WebGLRenderer({
+    canvas, antialias: true, alpha: false,
+    powerPreference: "high-performance"
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.05;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0b1226);
+scene.fog = new THREE.Fog(0x0b1226, 22, 70);
+
+const camera = new THREE.PerspectiveCamera(48, window.innerWidth / window.innerHeight, 0.1, 200);
+// Starting camera: slightly behind waiting area, looking up toward the canopy
+camera.position.set(0, 4.6, 8.2);
+camera.lookAt(0, 0.4, chargingZ + 0.2);
+
+const controls = new OrbitControls(camera, canvas);
+controls.target.set(0, 0.4, chargingZ + 0.2);
+controls.enableDamping = true;
+controls.dampingFactor = 0.075;
+controls.minDistance = 4;
+controls.maxDistance = 24;
+controls.maxPolarAngle = Math.PI * 0.48;
+controls.autoRotateSpeed = 0.45;
+let autoRotateOn = !FAST_MODE;
+controls.autoRotate = autoRotateOn;
+
+document.getElementById("btnAutoRotate").addEventListener("click", () => {
+    autoRotateOn = !autoRotateOn;
+    controls.autoRotate = autoRotateOn;
+});
+
+// =========================================================================
+// 4) Lighting (cinematic): hemisphere + warm key + cool rim
+// =========================================================================
+scene.add(new THREE.HemisphereLight(0x9bb3ff, 0x1a1a2a, 0.55));
+const keyLight = new THREE.DirectionalLight(0xfff1d6, 1.25);
+keyLight.position.set(-10, 14, 6);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.left = -20;
+keyLight.shadow.camera.right = 20;
+keyLight.shadow.camera.top = 20;
+keyLight.shadow.camera.bottom = -20;
+keyLight.shadow.bias = -0.0005;
+scene.add(keyLight);
+
+const rimLight = new THREE.DirectionalLight(0x4dabf7, 0.5);
+rimLight.position.set(8, 6, -8);
+scene.add(rimLight);
+
+// =========================================================================
+// 5) Static set: sky gradient, ground, road, zone pads, canopies
+// =========================================================================
+function createSkyDome() {
+    const geo = new THREE.SphereGeometry(120, 32, 16);
+    const mat = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        uniforms: {
+            topColor:    { value: new THREE.Color(0x070b1a) },
+            midColor:    { value: new THREE.Color(0x132040) },
+            bottomColor: { value: new THREE.Color(0x2a3a6b) },
+            offset: { value: 30 },
+            exponent: { value: 0.85 }
+        },
+        vertexShader: `
+            varying vec3 vWorldPos;
+            void main() {
+                vec4 wp = modelMatrix * vec4(position, 1.0);
+                vWorldPos = wp.xyz;
+                gl_Position = projectionMatrix * viewMatrix * wp;
+            }`,
+        fragmentShader: `
+            uniform vec3 topColor; uniform vec3 midColor; uniform vec3 bottomColor;
+            uniform float offset; uniform float exponent;
+            varying vec3 vWorldPos;
+            void main() {
+                float h = normalize(vWorldPos + vec3(0.0, offset, 0.0)).y;
+                vec3 col = mix(bottomColor, midColor, smoothstep(-0.1, 0.4, h));
+                col = mix(col, topColor, smoothstep(0.4, 1.0, h));
+                gl_FragColor = vec4(col, 1.0);
+            }`
+    });
+    return new THREE.Mesh(geo, mat);
+}
+scene.add(createSkyDome());
+
+function makeNoiseTexture(size = 256, base = "#1a1f2e", flecks = "rgba(160,170,190,0.05)") {
+    const c = document.createElement("canvas");
+    c.width = c.height = size;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = base;
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = flecks;
+    for (let i = 0; i < size * 6; i++) {
+        ctx.fillRect(Math.random() * size, Math.random() * size, 1, 1);
+    }
+    const tex = new THREE.CanvasTexture(c);
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+}
+function makeRoadTexture() {
+    const c = document.createElement("canvas");
+    c.width = 1024; c.height = 256;
+    const ctx = c.getContext("2d");
+    ctx.fillStyle = "#1a1d24"; ctx.fillRect(0, 0, c.width, c.height);
+    // asphalt noise
+    ctx.fillStyle = "rgba(255,255,255,0.025)";
+    for (let i = 0; i < 4000; i++) ctx.fillRect(Math.random() * c.width, Math.random() * c.height, 1, 1);
+    // double yellow center line
+    ctx.fillStyle = "#facc15";
+    ctx.fillRect(0, 116, c.width, 5);
+    ctx.fillRect(0, 134, c.width, 5);
+    // white edge lines
+    ctx.fillStyle = "#e5e7eb";
+    ctx.fillRect(0, 14, c.width, 4);
+    ctx.fillRect(0, 238, c.width, 4);
+    // dashed lane separators
+    for (let x = 0; x < c.width; x += 80) ctx.fillRect(x, 70, 40, 3);
+    for (let x = 0; x < c.width; x += 80) ctx.fillRect(x, 184, 40, 3);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    tex.wrapS = THREE.RepeatWrapping;
+    tex.repeat.x = 4;
+    return tex;
+}
+
+// Ground (dark asphalt-ish plane far beyond station)
+const ground = new THREE.Mesh(
+    new THREE.PlaneGeometry(140, 140),
+    new THREE.MeshStandardMaterial({ map: makeNoiseTexture(), roughness: 0.94, metalness: 0.04 })
+);
+ground.rotation.x = -Math.PI / 2;
+ground.position.y = -0.005;
+ground.receiveShadow = true;
+scene.add(ground);
+
+// Road
+const road = new THREE.Mesh(
+    new THREE.PlaneGeometry(40, 3.4),
+    new THREE.MeshStandardMaterial({ map: makeRoadTexture(), roughness: 0.86, metalness: 0.04 })
+);
+road.rotation.x = -Math.PI / 2;
+road.position.set(0, 0.005, -0.42);
+road.receiveShadow = true;
+scene.add(road);
+
+// Charging zone pad
+function createZonePad(width, depth, x, z, color, borderColor) {
+    const g = new THREE.Group();
+    const pad = new THREE.Mesh(
+        new THREE.BoxGeometry(width, 0.04, depth),
+        new THREE.MeshStandardMaterial({ color, roughness: 0.72, metalness: 0.18 })
+    );
+    pad.position.set(x, 0.02, z);
+    pad.receiveShadow = true;
+    g.add(pad);
+    // border
+    const halfW = width / 2, halfD = depth / 2;
+    const borderMat = new THREE.MeshBasicMaterial({ color: borderColor, transparent: true, opacity: 0.85 });
+    [[-halfW, 0, -halfD, halfW, 0, -halfD],
+     [halfW, 0, -halfD, halfW, 0, halfD],
+     [halfW, 0, halfD, -halfW, 0, halfD],
+     [-halfW, 0, halfD, -halfW, 0, -halfD]].forEach(([x1, y1, z1, x2, y2, z2]) => {
+        const len = Math.hypot(x2 - x1, z2 - z1);
+        const horiz = Math.abs(x2 - x1) > Math.abs(z2 - z1);
+        const bar = new THREE.Mesh(
+            new THREE.BoxGeometry(horiz ? len : 0.08, 0.05, horiz ? 0.08 : len),
+            borderMat
+        );
+        bar.position.set(x + (x1 + x2) / 2, 0.045, z + (z1 + z2) / 2);
+        g.add(bar);
+    });
+    return g;
+}
+scene.add(createZonePad(13.5, 3.2, 0, chargingZ, 0x1f2937, 0x60a5fa));
+scene.add(createZonePad(13.5, 2.6, 0, waitingBaseZ + waitingRowGap / 2, 0x102447, 0x34d399));
+scene.add(createZonePad(13.5, 0.86, 0, redispatchBaseZ + 0.22, 0x3b1f24, 0xe89b8a));
+
+// Charging canopy (primitive — no GLB found)
+function createChargingCanopy() {
+    const g = new THREE.Group();
+    const roofMat = new THREE.MeshStandardMaterial({
+        color: 0x1e293b, roughness: 0.4, metalness: 0.65,
+        emissive: 0x0e1424, emissiveIntensity: 0.5
+    });
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.18, 3.7), roofMat);
+    roof.position.set(0, 3.4, chargingZ);
+    roof.castShadow = true;
+    g.add(roof);
+    // trim
+    const trimMat = new THREE.MeshStandardMaterial({
+        color: 0x60a5fa, emissive: 0x1c7ed6, emissiveIntensity: 1.8
+    });
+    [[-7.2, 3.31], [7.2, 3.31]].forEach(([x]) => {
+        const trim = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.06, 3.6), trimMat);
+        trim.position.set(x, 3.31, chargingZ);
+        g.add(trim);
+    });
+    // pillars
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.5, metalness: 0.5 });
+    [[-6.8, -1.6], [6.8, -1.6], [-6.8, 1.6], [6.8, 1.6]].forEach(([px, pz]) => {
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.18, 3.4, 16), pillarMat);
+        p.position.set(px, 1.7, chargingZ + pz);
+        p.castShadow = true;
+        g.add(p);
+    });
+    // ceiling lights (4 spot lights)
+    [[-4, 2], [-1.3, 2], [1.3, 2], [4, 2]].forEach(([x, _zMul]) => {
+        const sl = new THREE.SpotLight(0xfff1d6, 12, 6, Math.PI / 5, 0.4, 2);
+        sl.position.set(x, 3.2, chargingZ + 0.2);
+        sl.target.position.set(x, 0, chargingZ + 0.2);
+        scene.add(sl.target);
+        g.add(sl);
+        // visible glow plate
+        const glow = new THREE.Mesh(
+            new THREE.CircleGeometry(0.18, 16),
+            new THREE.MeshBasicMaterial({ color: 0xfff1d6 })
+        );
+        glow.rotation.x = Math.PI / 2;
+        glow.position.set(x, 3.28, chargingZ + 0.2);
+        g.add(glow);
+    });
+    return g;
+}
+scene.add(createChargingCanopy());
+
+// Waiting shelter (lighter, glass roof feel)
+function createWaitingShelter() {
+    const g = new THREE.Group();
+    const z = waitingBaseZ + waitingRowGap / 2;
+    const glassMat = new THREE.MeshPhysicalMaterial({
+        color: 0xb6d4f7, roughness: 0.04, metalness: 0.1,
+        transmission: 0.7, transparent: true, opacity: 0.4,
+        thickness: 0.1, ior: 1.45, emissive: 0x0c1a30, emissiveIntensity: 0.4
+    });
+    const roof = new THREE.Mesh(new THREE.BoxGeometry(14.5, 0.08, 3), glassMat);
+    roof.position.set(0, 2.55, z);
+    g.add(roof);
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.5, metalness: 0.7 });
+    // edge frames
+    [[-7.2, z, 0.04, 3.05], [7.2, z, 0.04, 3.05],
+     [0, z - 1.5, 14.5, 0.04], [0, z + 1.5, 14.5, 0.04]].forEach(([fx, fz, w, d]) => {
+        const f = new THREE.Mesh(new THREE.BoxGeometry(w, 0.06, d), frameMat);
+        f.position.set(fx, 2.6, fz);
+        g.add(f);
+    });
+    // 4 corner pillars
+    [[-7, -1.4], [7, -1.4], [-7, 1.4], [7, 1.4]].forEach(([px, dz]) => {
+        const p = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.12, 2.55, 12), frameMat);
+        p.position.set(px, 1.28, z + dz);
+        p.castShadow = true;
+        g.add(p);
+    });
+    return g;
+}
+scene.add(createWaitingShelter());
+
+// =========================================================================
+// 6) Asset loading: GLB-first, with fallback chain per asset
+// =========================================================================
+// Asset URL strategy:
+//   - Car: ferrari.glb is dead-on shape, scale, PBR materials → real GLB
+//   - Pile: no good public EV-charger GLB exists; high-fidelity primitive is more accurate
+//     to the design doc's pillar + screen + gun cable than e.g. BoomBox.glb (an mp3 player)
+//   - Lamp: Lantern.glb is an antique lamp not a modern street pole → primitive fits better
+// `?glb=all` query param re-enables experimental GLB for pile/lamp.
+const ALL_GLB = params.has("glb") && params.get("glb") === "all";
+const FERRARI_URLS = [
+    "https://threejs.org/examples/models/gltf/ferrari.glb",
+    "https://raw.githack.com/mrdoob/three.js/r164/examples/models/gltf/ferrari.glb"
+];
+const PILE_URLS = ALL_GLB ? [
+    "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/BoomBox/glTF-Binary/BoomBox.glb",
+    "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/BoomBox/glTF-Binary/BoomBox.glb"
+] : [];
+const LAMP_URLS = ALL_GLB ? [
+    "https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/Lantern/glTF-Binary/Lantern.glb",
+    "https://raw.githubusercontent.com/KhronosGroup/glTF-Sample-Assets/main/Models/Lantern/glTF-Binary/Lantern.glb"
+] : [];
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath("https://cdn.jsdelivr.net/npm/three@0.164.1/examples/jsm/libs/draco/");
+const gltfLoader = new GLTFLoader().setDRACOLoader(dracoLoader);
+
+async function tryLoadGLB(urls, primitiveFactory, scaleFn = null) {
+    if (NO_CDN) {
+        return { template: primitiveFactory(), source: "primitive (?nocdn=1)" };
+    }
+    if (!urls || urls.length === 0) {
+        // Intentionally primitive-only — no widely available GLB matches the design.
+        return { template: primitiveFactory(), source: "primitive (best fit)" };
+    }
+    for (const url of urls) {
+        try {
+            const gltf = await gltfLoader.loadAsync(url);
+            const root = gltf.scene;
+            if (scaleFn) scaleFn(root);
+            root.traverse(o => {
+                if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; }
+            });
+            const short = url.replace(/^https?:\/\//, "").split("/").slice(-1)[0];
+            return { template: root, source: short };
+        } catch (e) {
+            console.warn("[GLB miss]", url, e?.message || e);
+        }
+    }
+    return { template: primitiveFactory(), source: "primitive (CDN unreachable)" };
+}
+
+// ---------- Primitive fallbacks (high-fidelity) ----------
+function createFallbackCar() {
+    const g = new THREE.Group();
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.22, metalness: 0.7 });
+    const glassMat = new THREE.MeshStandardMaterial({ color: 0x9ec5e6, roughness: 0.05, metalness: 0.2, transparent: true, opacity: 0.85 });
+    const tireMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.86 });
+    const hubMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.3, metalness: 0.78 });
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.95, 0.35, 1.85), bodyMat);
+    body.position.y = 0.27; body.castShadow = true; g.add(body);
+    const hood = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.16, 0.6), bodyMat);
+    hood.position.set(0, 0.39, -0.55); g.add(hood);
+    const cabin = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.32, 0.92), glassMat);
+    cabin.position.set(0, 0.55, 0); cabin.castShadow = true; g.add(cabin);
+    const trunk = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.12, 0.5), bodyMat);
+    trunk.position.set(0, 0.4, 0.6); g.add(trunk);
+    [[-0.48, -0.6], [0.48, -0.6], [-0.48, 0.55], [0.48, 0.55]].forEach(([x, z]) => {
+        const tire = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.1, 22), tireMat);
+        tire.rotation.z = Math.PI / 2; tire.position.set(x, 0.18, z); g.add(tire);
+        const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.105, 16), hubMat);
+        hub.rotation.z = Math.PI / 2; hub.position.set(x + (x > 0 ? 0.005 : -0.005), 0.18, z); g.add(hub);
+    });
+    // headlights
+    const lightMat = new THREE.MeshStandardMaterial({ color: 0xfff1d6, emissive: 0xfff1d6, emissiveIntensity: 1.4 });
+    [[-0.32, -0.92], [0.32, -0.92]].forEach(([x, z]) => {
+        const hl = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.07, 0.04), lightMat);
+        hl.position.set(x, 0.32, z); g.add(hl);
+    });
+    // taillights
+    const tailMat = new THREE.MeshStandardMaterial({ color: 0xff6b6b, emissive: 0xff6b6b, emissiveIntensity: 1.2 });
+    [[-0.32, 0.92], [0.32, 0.92]].forEach(([x, z]) => {
+        const tl = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.06, 0.04), tailMat);
+        tl.position.set(x, 0.32, z); g.add(tl);
+    });
+    return g;
+}
+
+function createFallbackPile() {
+    const g = new THREE.Group();
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.3, metalness: 0.5 });
+    const trimMat = new THREE.MeshStandardMaterial({ color: 0x4dabf7, emissive: 0x1c7ed6, emissiveIntensity: 1.8 });
+    const screenMat = new THREE.MeshStandardMaterial({ color: 0xdbeafe, emissive: 0x60a5fa, emissiveIntensity: 1.2 });
+    // base
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.12, 0.5), baseMat);
+    base.position.y = 0.06; base.castShadow = true; g.add(base);
+    // body
+    const body = new THREE.Mesh(new THREE.BoxGeometry(0.4, 1.3, 0.32), baseMat);
+    body.position.y = 0.78; body.castShadow = true; g.add(body);
+    // rounded cap
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.1, 24), baseMat);
+    cap.position.y = 1.48; g.add(cap);
+    // led trim
+    const trim = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.04, 0.34), trimMat);
+    trim.position.y = 1.42; g.add(trim);
+    // screen
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.36, 0.022), screenMat);
+    screen.position.set(0, 1.05, 0.17); g.add(screen);
+    // status lamp
+    const lamp = new THREE.Mesh(
+        new THREE.SphereGeometry(0.08, 16, 12),
+        new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x10b981, emissiveIntensity: 2.4 })
+    );
+    lamp.position.set(0, 1.56, 0); lamp.name = "statusLamp"; g.add(lamp);
+    // charging gun + cable
+    const gun = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.05, 0.05, 0.18, 12),
+        new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.3, metalness: 0.4 })
+    );
+    gun.position.set(0.32, 0.4, 0.05);
+    gun.rotation.z = Math.PI / 4;
+    g.add(gun);
+    return g;
+}
+
+function createFallbackLamp() {
+    const g = new THREE.Group();
+    const poleMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.4, metalness: 0.6 });
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 4.2, 12), poleMat);
+    pole.position.y = 2.1; pole.castShadow = true; g.add(pole);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.06, 0.08), poleMat);
+    arm.position.set(0.3, 4.0, 0); g.add(arm);
+    const head = new THREE.Mesh(
+        new THREE.SphereGeometry(0.16, 16, 12),
+        new THREE.MeshStandardMaterial({ color: 0xffe9b3, emissive: 0xffe9b3, emissiveIntensity: 2.6 })
+    );
+    head.position.set(0.6, 3.95, 0); g.add(head);
+    const pl = new THREE.PointLight(0xfff1d6, 1.6, 8, 2);
+    pl.position.set(0.6, 3.95, 0);
+    g.add(pl);
+    // light cone (visualize)
+    const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(1.2, 3.4, 24, 1, true),
+        new THREE.MeshBasicMaterial({ color: 0xfff1d6, transparent: true, opacity: 0.07, side: THREE.DoubleSide })
+    );
+    cone.position.set(0.6, 2.2, 0);
+    g.add(cone);
+    return g;
+}
+
+// ---------- Pile decoration (gun + cable + status lamp on top of GLB or fallback) ----------
+function buildPileInstance(template, mode) {
+    const root = template.clone(true);
+    // Normalize scale: BoomBox.glb is sub-cm, scale up; fallback already correct
+    if (root.userData?.isFallback !== true) {
+        const bbox = new THREE.Box3().setFromObject(root);
+        const size = new THREE.Vector3();
+        bbox.getSize(size);
+        const target = 0.6;
+        const s = target / Math.max(size.y, 0.01);
+        root.scale.setScalar(s);
+        root.position.y = 0.6;
+    }
+    // status lamp (overlay above whatever the GLB looks like)
+    const lamp = new THREE.Mesh(
+        new THREE.SphereGeometry(0.09, 16, 12),
+        new THREE.MeshStandardMaterial({ color: 0x34d399, emissive: 0x10b981, emissiveIntensity: 2.4 })
+    );
+    lamp.position.set(0, 1.62, 0); lamp.name = "statusLamp";
+    root.add(lamp);
+    // halo ring on ground
+    const halo = new THREE.Mesh(
+        new THREE.RingGeometry(0.3, 0.46, 32),
+        new THREE.MeshBasicMaterial({ color: mode === "FAST" ? 0x4dabf7 : 0x51cf66, transparent: true, opacity: 0.45 })
+    );
+    halo.rotation.x = -Math.PI / 2;
+    halo.position.y = 0.005;
+    halo.name = "modeHalo";
+    root.add(halo);
+    return root;
+}
+
+// ---------- Car decoration (paint by mode) ----------
+const carBodyHints = ["body", "carBody", "paint", "shell", "Body", "Paint"];
+function buildCarInstance(template, color) {
+    const inner = template.clone(true);
+    // Normalize scale (ferrari.glb is ~4m long; we want ~1.8 footprint)
+    const bbox = new THREE.Box3().setFromObject(inner);
+    const size = new THREE.Vector3();
+    bbox.getSize(size);
+    if (size.x > 0.01) {
+        const target = 1.8;
+        const s = target / Math.max(size.z, size.x, 0.5);
+        inner.scale.setScalar(s);
+    }
+    inner.position.y = 0.0;
+    // ─── Wrap in a yaw-correcting group so every car uses the same convention:
+    //     parent's rotation.y = 0  →  car nose pointing -Z (Three.js forward).
+    // ferrari.glb is authored nose-toward +Z; primitive fallback nose-toward -Z.
+    const isGlbCar = typeof assets !== "undefined" && assets?.car
+            && /ferrari/i.test(assets.car.source || "");
+    const wrap = new THREE.Group();
+    inner.rotation.y = isGlbCar ? Math.PI : 0;
+    wrap.add(inner);
+    wrap.userData.isFallback = !isGlbCar && inner.userData?.isFallback;
+    const root = wrap;
+
+    // Tint the body materials toward `color` if it's a fallback;
+    // for ferrari.glb (PBR painted) we softly mix tint into the body shader.
+    root.traverse(obj => {
+        if (!obj.isMesh) return;
+        const matName = (obj.material?.name || "").toLowerCase();
+        const isBodyHint = carBodyHints.some(h => matName.includes(h.toLowerCase()));
+        if (isBodyHint || root.userData?.isFallback) {
+            try {
+                const m = obj.material.clone();
+                if (m.color) m.color = new THREE.Color(color);
+                if (m.emissive) m.emissive = new THREE.Color(color).multiplyScalar(0.06);
+                obj.material = m;
+            } catch (e) { /* ignore */ }
+        }
+    });
+    return root;
+}
+
+// =========================================================================
+// 7) Pile placement (mirrors 5_admin_queue.html pilePosition + slotLocalZ)
+// =========================================================================
+let stationConfig = { fastPileCount: 3, slowPileCount: 2, pileSlotCapacity: 3, waitingCapacity: 10 };
+
+function pilePosition(id) {
+    const fast = Math.max(Number(stationConfig.fastPileCount ?? 3), 0);
+    const slow = Math.max(Number(stationConfig.slowPileCount ?? 2), 0);
+    const order = [];
+    for (let i = 1; i <= fast; i++) order.push("F" + i);
+    for (let i = 1; i <= slow; i++) order.push("T" + i);
+    if (order.length === 0) order.push("F1", "F2", "F3", "T1", "T2");
+    const idx = Math.max(order.indexOf(id), 0);
+    const total = order.length;
+    const spacing = total > 1 ? Math.min(2.72, 10.9 / (total - 1)) : 0;
+    const startX = total > 1 ? -spacing * (total - 1) / 2 : 0;
+    return { x: startX + idx * spacing, z: chargingZ };
+}
+
+function slotLocalZ(slotIndex) {
+    const slotCount = Math.max(Number(stationConfig.pileSlotCapacity ?? 3), 1);
+    if (slotCount === 1) return -0.02;
+    const start = -1.28;
+    const end = 1.24;
+    const step = (end - start) / (slotCount - 1);
+    return start + Math.min(slotIndex, slotCount - 1) * step;
+}
+
+function findVehicleLocationIn(vehicleId, piles, waitingFast, waitingSlow, redispatchFast = [], redispatchSlow = []) {
+    for (const pile of piles) {
+        const base = pilePosition(pile.id);
+        const vehicles = [pile.currentVehicle, ...(pile.queuedVehicles || [])]
+            .slice(0, Math.max(Number(stationConfig.pileSlotCapacity ?? 3), 1));
+        const slot = vehicles.findIndex(v => v === vehicleId);
+        if (slot >= 0) {
+            return {
+                zone: "pile",
+                rotation: parkedCarRotation,
+                position: new THREE.Vector3(base.x, 0.04, base.z + slotLocalZ(slot))
+            };
+        }
+    }
+    const waiting = [
+        ...waitingFast.map((car, index) => ({ car, index, startX: waitingFastStartX })),
+        ...waitingSlow.map((car, index) => ({ car, index, startX: waitingSlowStartX }))
+    ];
+    const found = waiting.find(it => it.car === vehicleId);
+    if (found) {
+        return {
+            zone: "waiting",
+            rotation: waitingCarRotation,
+            position: new THREE.Vector3(
+                found.startX + (found.index % 4) * waitingSlotGap,
+                0.04,
+                waitingBaseZ + Math.floor(found.index / 4) * waitingRowGap
+            )
+        };
+    }
+    const redispatch = [
+        ...redispatchFast.map((car, index) => ({ car, index, startX: redispatchFastStartX })),
+        ...redispatchSlow.map((car, index) => ({ car, index, startX: redispatchSlowStartX }))
+    ];
+    const redispatchFound = redispatch.find(it => it.car === vehicleId);
+    if (!redispatchFound) return null;
+    return {
+        zone: "redispatch",
+        rotation: waitingCarRotation,
+        position: new THREE.Vector3(
+            redispatchFound.startX + (redispatchFound.index % 4) * redispatchSlotGap,
+            0.04,
+            redispatchBaseZ + Math.floor(redispatchFound.index / 4) * redispatchRowGap
+        )
+    };
+}
+
+// =========================================================================
+// 8) Scene roots that get re-populated each snapshot
+// =========================================================================
+const pileRoot = new THREE.Group(); pileRoot.name = "pileRoot"; scene.add(pileRoot);
+const carRoot = new THREE.Group(); carRoot.name = "carRoot"; scene.add(carRoot);
+const lampRoot = new THREE.Group(); lampRoot.name = "lampRoot"; scene.add(lampRoot);
+
+// =========================================================================
+// 9) Post-processing
+// =========================================================================
+let composer = null;
+if (!FAST_MODE) {
+    composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        0.85,  // strength
+        0.4,   // radius
+        0.6    // threshold
+    );
+    composer.addPass(bloom);
+    composer.setSize(window.innerWidth, window.innerHeight);
+}
+
+// =========================================================================
+// 10) Snapshot → scene
+// =========================================================================
+const colorFor = req => {
+    if (req.status === "REDISPATCHING") return 0xe89b8a;
+    if (req.status === "PAID") return 0xa78bfa;
+    return req.mode === "FAST" ? 0x4dabf7 : 0x51cf66;
+};
+
+function redispatchVehicles(requests, mode) {
+    const latest = new Map();
+    requests.forEach(req => {
+        const prev = latest.get(req.vehicleId);
+        if (!prev || String(req.createdAt) > String(prev.createdAt)) latest.set(req.vehicleId, req);
+    });
+    return [...latest.values()]
+        .filter(req => req.status === "REDISPATCHING" && req.mode === mode)
+        .sort((a, b) => queueNoSort(a.queueNo) - queueNoSort(b.queueNo))
+        .map(req => req.vehicleId);
+}
+
+function queueNoSort(queueNo) {
+    const match = String(queueNo || "").match(/\d+/);
+    return match ? Number(match[0]) : Number.MAX_SAFE_INTEGER;
+}
+
+const assets = { car: null, pile: null, lamp: null };
+
+function placeLamps() {
+    lampRoot.clear();
+    // 6 路灯：沿 road (z ≈ -0.42) 两侧
+    const positions = [
+        [-6.5, -0.42 - 2], [-2.2, -0.42 - 2], [2.2, -0.42 - 2], [6.5, -0.42 - 2],
+        [-6.5, -0.42 + 2], [6.5, -0.42 + 2]
+    ];
+    positions.forEach(([x, z], i) => {
+        const lamp = assets.lamp.template.clone(true);
+        // Lantern.glb is in mm; scale down. Fallback lamp is already correct.
+        if (assets.lamp.source.includes("Lantern.glb")) {
+            lamp.scale.setScalar(0.6);
+        }
+        lamp.position.set(x, 0, z);
+        if (i % 2 === 1) lamp.rotation.y = Math.PI;
+        lampRoot.add(lamp);
+    });
+}
+
+function placePiles(snap) {
+    pileRoot.clear();
+    (snap.piles || []).forEach(p => {
+        const inst = buildPileInstance(assets.pile.template, p.mode);
+        const pos = pilePosition(p.id);
+        inst.position.set(pos.x, 0, pos.z - 0.4);  // a touch behind the slot center
+        // status lamp color
+        const lamp = inst.getObjectByName("statusLamp");
+        const halo = inst.getObjectByName("modeHalo");
+        if (p.status === "FAULT") {
+            if (lamp) { lamp.material.color.set(0xf87171); lamp.material.emissive.set(0xb91c1c); lamp.material.emissiveIntensity = 3.0; }
+            if (halo) { halo.material.color.set(0xf87171); halo.material.opacity = 0.55; }
+        } else if (p.status === "DISABLED") {
+            if (lamp) { lamp.material.color.set(0xfbbf24); lamp.material.emissive.set(0xf59e0b); lamp.material.emissiveIntensity = 1.4; }
+        } else if (p.currentVehicle) {
+            if (lamp) { lamp.material.color.set(0x60a5fa); lamp.material.emissive.set(0x2563eb); lamp.material.emissiveIntensity = 2.6; }
+        }
+        // label sprite
+        inst.add(makePileLabel(p.id));
+        pileRoot.add(inst);
+    });
+}
+
+// ============================================================
+// Diff-reuse car management + smooth motion animation
+// ============================================================
+
+// Cache: vehicleId → static car mesh (parked at slot)
+const carMeshById = new Map();
+// Cache: vehicleId → THREE.Vector3 (last known position) — used for diff
+const prevPositions = new Map();
+
+// Motion animation state (single motionCar instance)
+let motionCar = null;
+let activeCurve = null;
+let activeStartedAt = 0;
+let activeDuration = 2.4;
+let activeFinalRotation = parkedCarRotation;
+let activeFromColor = 0x4dabf7;
+let motionTargetVid = null;          // which vehicle is currently animating
+let motionTargetMesh = null;         // its static mesh (hidden during motion)
+const MOTION_DURATION_S = 2.4;
+const MOTION_THRESHOLD = 0.18;       // metres — below this distance, snap instead of animate
+
+const easeToParking = t => 1 - Math.pow(1 - t, 3);
+const smoothstep = (e0, e1, x) => {
+    const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+};
+const lerpAngle = (a, b, t) => {
+    let d = b - a;
+    while (d > Math.PI) d -= Math.PI * 2;
+    while (d < -Math.PI) d += Math.PI * 2;
+    return a + d * t;
+};
+
+function ensureMotionCar() {
+    if (motionCar) return motionCar;
+    if (!assets.car) return null;
+    motionCar = buildCarInstance(assets.car.template, 0x4dabf7);
+    motionCar.visible = false;
+    motionCar.userData.isMotionCar = true;
+    scene.add(motionCar);
+    return motionCar;
+}
+
+// Entry point of the cinema station — cars approach from the road's left end.
+const ENTRY_POINT = new THREE.Vector3(-9.5, 0.04, 1.6);
+// Three.js forward = -Z. headingToYaw maps a horizontal direction (dx, dz) to
+// a rotation.y so the car NOSE points along that direction.
+const headingToYaw = (dx, dz) => Math.atan2(dx, -dz);
+
+function startMotion(fromPos, toPos, finalRotation, color, vehicleId, staticMesh) {
+    const car = ensureMotionCar();
+    if (!car) return;
+    // Re-paint motionCar to match the moving vehicle's mode color
+    car.traverse(obj => {
+        if (!obj.isMesh) return;
+        const matName = (obj.material?.name || "").toLowerCase();
+        const isBody = ["body", "carBody", "paint", "shell"].some(h => matName.includes(h))
+                       || car.userData?.isFallback;
+        if (isBody && obj.material?.color) {
+            try { obj.material.color.set(color); } catch (e) {}
+        }
+    });
+    // 4-point Catmull-Rom: entry → lane mid → approach → final slot.
+    // Lets the car visibly drive ALONG the road before turning into a slot.
+    const totalDx = toPos.x - fromPos.x;
+    const isWaitingTarget = toPos.z > 0;
+    const laneZ = isWaitingTarget ? 0.55 : -0.55;
+    const lane = new THREE.Vector3(
+        fromPos.x + totalDx * 0.55,
+        fromPos.y,
+        laneZ
+    );
+    const approach = new THREE.Vector3(
+        toPos.x,
+        toPos.y + 0.05,
+        (lane.z + toPos.z) * 0.5
+    );
+    activeCurve = new THREE.CatmullRomCurve3([fromPos.clone(), lane, approach, toPos.clone()]);
+    activeStartedAt = performance.now() / 1000;
+    activeDuration = MOTION_DURATION_S;
+    activeFinalRotation = finalRotation;
+    motionTargetVid = vehicleId;
+    motionTargetMesh = staticMesh;
+    if (motionTargetMesh) motionTargetMesh.visible = false;
+    // Pre-orient car so the first rendered frame already points down the road (+X)
+    car.rotation.y = headingToYaw(1, 0);
+    car.visible = true;
+}
+
+function animateMotion() {
+    if (!motionCar || !activeCurve) return;
+    const now = performance.now() / 1000;
+    const progress = Math.min(1, (now - activeStartedAt) / activeDuration);
+    const eased = easeToParking(progress);
+    const point = activeCurve.getPoint(eased);
+    motionCar.position.copy(point);
+    // Yaw the car so its NOSE follows the path tangent.
+    const tang = activeCurve.getTangent(Math.min(eased + 0.02, 1)).normalize();
+    const tangentRot = headingToYaw(tang.x, tang.z);
+    // Blend toward the parking rotation only at the last 25 % of the path.
+    motionCar.rotation.y = lerpAngle(tangentRot, activeFinalRotation, smoothstep(0.75, 1.0, eased));
+    if (progress >= 1) {
+        motionCar.visible = false;
+        activeCurve = null;
+        if (motionTargetMesh) {
+            motionTargetMesh.visible = true;
+            motionTargetMesh = null;
+        }
+        motionTargetVid = null;
+    }
+}
+
+function applySnapshot(snap) {
+    stationConfig = snap.stationConfig || stationConfig;
+    placePiles(snap);
+
+    // 1. Compute desired location for each currently-active vehicle
+    const piles = snap.piles || [];
+    const wFast = snap.waitingFast || [];
+    const wSlow = snap.waitingSlow || [];
+    const rFast = redispatchVehicles(snap.requests || [], "FAST");
+    const rSlow = redispatchVehicles(snap.requests || [], "SLOW");
+    const desired = new Map();           // vid → { loc, req }
+    (snap.requests || [])
+        .filter(r => ["CHARGING", "PILE_QUEUE", "WAITING_AREA", "REDISPATCHING"].includes(r.status))
+        .forEach(r => {
+            if (desired.has(r.vehicleId)) return;
+            const loc = findVehicleLocationIn(r.vehicleId, piles, wFast, wSlow, rFast, rSlow);
+            if (loc) desired.set(r.vehicleId, { loc, req: r });
+        });
+
+    // 2. Remove meshes for vehicles that vanished
+    for (const [vid, mesh] of Array.from(carMeshById.entries())) {
+        if (!desired.has(vid)) {
+            carRoot.remove(mesh);
+            carMeshById.delete(vid);
+            prevPositions.delete(vid);
+        }
+    }
+
+    // 3. Update or create mesh for each desired vehicle.
+    //    NEW vehicles drive in from ENTRY_POINT; MOVED vehicles drive from prev → new.
+    //    Only one motion runs at a time (activeCurve gate) — the rest snap.
+    for (const [vid, { loc, req }] of desired) {
+        let mesh = carMeshById.get(vid);
+        const isNew = !mesh;
+        if (isNew) {
+            mesh = buildCarInstance(assets.car.template, colorFor(req));
+            mesh.userData.vid = vid;
+            mesh.add(makeVehicleLabel(req.vehicleId, req.queueNo, req.status));
+            carRoot.add(mesh);
+            carMeshById.set(vid, mesh);
+        } else {
+            mesh.children.filter(c => c.isSprite).forEach(s => mesh.remove(s));
+            mesh.add(makeVehicleLabel(req.vehicleId, req.queueNo, req.status));
+        }
+        const prev = prevPositions.get(vid);
+        const dist = prev ? prev.distanceTo(loc.position) : 0;
+
+        if (!activeCurve) {
+            if (isNew) {
+                // Entry animation — drive from road entry into the target slot
+                startMotion(ENTRY_POINT.clone(), loc.position.clone(), loc.rotation,
+                            colorFor(req), vid, mesh);
+                mesh.position.copy(loc.position);
+                mesh.rotation.y = loc.rotation;
+            } else if (prev && dist > MOTION_THRESHOLD) {
+                // Vehicle moved between slots — animate prev → new
+                startMotion(prev.clone(), loc.position.clone(), loc.rotation,
+                            colorFor(req), vid, mesh);
+                mesh.position.copy(loc.position);
+                mesh.rotation.y = loc.rotation;
+            } else {
+                mesh.position.copy(loc.position);
+                mesh.rotation.y = loc.rotation;
+            }
+        } else {
+            mesh.position.copy(loc.position);
+            mesh.rotation.y = loc.rotation;
+        }
+        prevPositions.set(vid, loc.position.clone());
+    }
+
+    updateHud(snap);
+    activeEventIndex = inferApiIndexFromSnapshot(snap);
+    activePostIndex = inferPostIndexFromSnapshot(snap);
+    updatePlaybackProgress();
+}
+
+function updateHud(snap) {
+    stationTitleEl.textContent = `充电站 · ${snap.stationState || "RUNNING"}`;
+    stationMetaEl.textContent = `系统时间 ${String(snap.now || "").replace("T", " ").slice(0, 16)} · M=${stationConfig.pileSlotCapacity} · N=${stationConfig.waitingCapacity} · 快充 ${stationConfig.fastPileCount} 慢充 ${stationConfig.slowPileCount}`;
+    const reqs = snap.requests || [];
+    const charging = reqs.filter(r => r.status === "CHARGING").length;
+    const waiting = reqs.filter(r => r.status === "PILE_QUEUE" || r.status === "WAITING_AREA" || r.status === "REDISPATCHING").length;
+    const fault = (snap.piles || []).filter(p => p.status === "FAULT").length;
+    const done = reqs.filter(r => r.status === "COMPLETED" || r.status === "PAID").length;
+    counts.charging.textContent = charging;
+    counts.waiting.textContent = waiting;
+    counts.fault.textContent = fault;
+    counts.done.textContent = done;
+}
+
+// =========================================================================
+// 11) Labels (canvas sprites)
+// =========================================================================
+function makeTextSprite(text, color, bg, scale = 1) {
+    const c = document.createElement("canvas");
+    const dpr = 2;
+    c.width = 256 * dpr; c.height = 96 * dpr;
+    const ctx = c.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.fillStyle = bg;
+    ctx.beginPath();
+    const r = 14;
+    ctx.moveTo(r, 0); ctx.lineTo(256 - r, 0); ctx.arcTo(256, 0, 256, r, r);
+    ctx.lineTo(256, 96 - r); ctx.arcTo(256, 96, 256 - r, 96, r);
+    ctx.lineTo(r, 96); ctx.arcTo(0, 96, 0, 96 - r, r);
+    ctx.lineTo(0, r); ctx.arcTo(0, 0, r, 0, r); ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = color;
+    ctx.font = "bold 42px system-ui, -apple-system";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(text, 128, 48);
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const mat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(0.85 * scale, 0.32 * scale, 1);
+    return sprite;
+}
+
+function makePileLabel(pileId) {
+    const isFast = pileId.startsWith("F");
+    const sprite = makeTextSprite(pileId, "#ffffff", isFast ? "#1e3a8a" : "#064e3b");
+    sprite.position.set(0, 2.0, 0);
+    return sprite;
+}
+
+function makeVehicleLabel(vid, queueNo, status) {
+    const tag = status === "CHARGING" ? "充电" : status === "PILE_QUEUE" ? "排队" : status === "REDISPATCHING" ? "重调度" : "等候";
+    const sprite = makeTextSprite(`${vid} · ${queueNo} · ${tag}`, "#ffffff", "rgba(15, 23, 42, 0.88)", 0.85);
+    sprite.position.set(0, 0.95, 0);
+    return sprite;
+}
+
+// =========================================================================
+// 12) Realtime: initial REST + WebSocket + polling fallback
+// =========================================================================
+let lastSnapshot = null;
+function pushEvent(type, msg) {
+    const tag = type === "REQUEST_SUBMITTED" || type === "REQUEST_CHANGED" || type === "REQUEST_CANCELLED" ? "REQ"
+        : type === "CHARGING_ENDED" || type === "STATE_CHANGED" ? "CHG"
+        : type === "BILL_PAID" ? "PAY"
+        : type === "PILE_FAULT" || type === "PILE_RECOVERED" ? "FAULT"
+        : type === "CONFIG_UPDATED" || type === "STATION_STARTED" || type === "STATION_STOPPED" ? "CFG"
+        : "INFO";
+    const time = new Date().toLocaleTimeString();
+    const row = document.createElement("div");
+    row.className = "row";
+    row.innerHTML = `<span class="tag tag-evt-${tag}">${tag}</span><strong>${type}</strong> · ${msg} <span style="color:#64748b;float:right;">${time}</span>`;
+    if (eventFeedEl.firstChild?.textContent?.includes("等待后端事件")) eventFeedEl.innerHTML = "";
+    eventFeedEl.insertBefore(row, eventFeedEl.firstChild);
+    while (eventFeedEl.children.length > 8) eventFeedEl.removeChild(eventFeedEl.lastChild);
+}
+
+async function initialFetch() {
+    try {
+        const snap = await EVAuth.api("/api/admin/snapshot");
+        lastSnapshot = snap;
+        applySnapshot(snap);
+        pushEvent("INFO", `初始 snapshot 加载完成 (piles=${snap.piles.length})`);
+    } catch (e) {
+        showErr("后端 snapshot 获取失败：" + e.message);
+        pushEvent("INFO", "后端连接失败：" + e.message);
+    }
+}
+
+let wsConnected = false;
+function connectWebSocket() {
+    if (!("WebSocket" in window)) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws = new WebSocket(`${protocol}//${location.host}/ws`);
+    let ready = false;
+    function sendStomp(command, headers, body = "") {
+        let frame = command + "\n";
+        for (const k in headers) frame += `${k}:${headers[k]}\n`;
+        frame += "\n" + body + "\x00";
+        ws.send(frame);
+    }
+    function parseStompFrames(raw) {
+        return raw.split("\x00").filter(s => s.trim()).map(s => {
+            const sep = s.indexOf("\n\n");
+            const head = sep >= 0 ? s.slice(0, sep) : s;
+            const body = sep >= 0 ? s.slice(sep + 2) : "";
+            const lines = head.split("\n");
+            return { command: lines[0].trim(), body };
+        });
+    }
+    ws.onopen = () => sendStomp("CONNECT", { "accept-version": "1.2", host: location.host, "heart-beat": "10000,10000" });
+    ws.onmessage = e => {
+        parseStompFrames(String(e.data)).forEach(frame => {
+            if (frame.command === "CONNECTED" && !ready) {
+                ready = true; wsConnected = true;
+                sendStomp("SUBSCRIBE", { id: "cinema-7", destination: "/topic/station" });
+                sendStomp("SEND", { destination: "/app/station/snapshot" }, "{}");
+                pushEvent("INFO", "WebSocket 连接成功");
+                return;
+            }
+            if (frame.command !== "MESSAGE" || !frame.body) return;
+            try {
+                const msg = JSON.parse(frame.body);
+                if (msg.snapshot) {
+                    lastSnapshot = msg.snapshot;
+                    applySnapshot(msg.snapshot);
+                    pushEvent(msg.type || "STATE_CHANGED", `时间 ${msg.snapshot.now?.slice(11, 16) ?? ""}`);
+                }
+            } catch (err) { console.warn("[ws msg]", err); }
+        });
+    };
+    ws.onclose = () => {
+        if (wsConnected) pushEvent("INFO", "WebSocket 断开，3 秒后重连");
+        wsConnected = false;
+        setTimeout(connectWebSocket, 3000);
+    };
+    ws.onerror = () => { showErr("WebSocket 错误，已切换至轮询"); };
+}
+
+// REST polling fallback (5s) — only kicks in if WS hasn't pushed for a while.
+let lastUpdate = Date.now();
+setInterval(async () => {
+    if (Date.now() - lastUpdate < 8000) return;  // WebSocket is healthy
+    try {
+        const snap = await EVAuth.api("/api/admin/snapshot");
+        if (JSON.stringify(snap) !== JSON.stringify(lastSnapshot)) {
+            lastSnapshot = snap;
+            applySnapshot(snap);
+            pushEvent("INFO", "REST 轮询刷新");
+        }
+    } catch (e) { /* silent */ }
+}, 5000);
+
+document.getElementById("btnRefresh").addEventListener("click", initialFetch);
+document.getElementById("btnLogout").addEventListener("click", () => EVAuth.logout?.());
+
+// =========================================================================
+// 12b) Acceptance playback — POST events to /api/acceptance/event sequentially
+//      so every step pushes the backend clock and triggers WebSocket → motion.
+// =========================================================================
+const DEFAULT_FAULT_STRATEGY = "TIME_ORDER";
+const FAULT_STRATEGY_LABELS = {
+    TIME_ORDER: "策略B · 时间顺序",
+    PRIORITY: "策略A · 优先级"
+};
+let faultStrategy = normalizeFaultStrategy(
+    new URLSearchParams(location.search).get("strategy")
+    || localStorage.getItem("evchargeFaultStrategy")
+    || DEFAULT_FAULT_STRATEGY
+);
+
+function normalizeFaultStrategy(value) {
+    const normalized = String(value || "").toUpperCase();
+    return normalized === "PRIORITY" ? "PRIORITY" : "TIME_ORDER";
+}
+
+function strategyLabel(strategy) {
+    return FAULT_STRATEGY_LABELS[normalizeFaultStrategy(strategy)] || FAULT_STRATEGY_LABELS.TIME_ORDER;
+}
+
+// 32 events lifted verbatim from 5_admin_queue.html
+const apiEvents = [
+    ["06:00", "A", "V1", "T", "40"], ["06:05", "A", "V2", "T", "30"],
+    ["06:10", "A", "V3", "F", "60"], ["06:20", "A", "V2", "O", "0"],
+    ["06:25", "A", "V4", "T", "20"], ["06:30", "A", "V5", "T", "20"],
+    ["06:40", "A", "V6", "T", "20"], ["06:50", "A", "V7", "T", "10"],
+    ["07:00", "A", "V8", "F", "90"], ["07:10", "A", "V9", "F", "30"],
+    ["07:15", "A", "V10", "T", "10"], ["07:20", "A", "V11", "F", "60"],
+    ["07:25", "A", "V12", "T", "10"], ["07:30", "A", "V13", "T", "7.5"],
+    ["07:35", "A", "V14", "F", "75"], ["07:40", "A", "V15", "F", "45"],
+    ["08:00", "A", "V16", "T", "5"], ["08:20", "A", "V17", "T", "15"],
+    ["08:30", "A", "V18", "T", "20"], ["08:35", "A", "V19", "T", "25"],
+    ["09:00", "A", "V20", "F", "30"], ["09:10", "A", "V7", "O", "0"],
+    ["09:20", "A", "V11", "O", "0"], ["09:30", "A", "V18", "O", "0"],
+    ["09:35", "A", "V20", "O", "0"], ["09:50", "A", "V21", "F", "30"],
+    ["10:00", "A", "V22", "T", "10"], ["10:05", "C", "V19", "F", "25"],
+    ["10:10", "C", "V21", "F", "10"], ["10:20", "C", "V22", "F", "10"],
+    ["10:30", "B", "T1", "O", "60"], ["10:50", "B", "F1", "O", "120"]
+];
+const postXlsxEvents = [
+    ["11:25", "R", "自动结算：V12完成，V6进入T2", "O", "0"],
+    ["11:30", "R", "T1故障恢复；V15/V19完成", "O", "0"],
+    ["12:30", "R", "自动结算：V10完成，V13进入T1", "O", "0"],
+    ["12:50", "R", "F1故障恢复", "O", "0"],
+    ["12:55", "R", "自动结算：V6完成，V16进入T2", "O", "0"],
+    ["13:15", "R", "自动结算：V13完成，V17进入T1", "O", "0"],
+    ["13:25", "R", "自动结算：V16完成", "O", "0"],
+    ["14:45", "R", "自动结算：V17完成，全部完成", "O", "0"]
+];
+const xlsxTimelineEvents = [...apiEvents, ...postXlsxEvents];
+
+function inferApiIndexFromSnapshot(snap) {
+    if (!snap) return -1;
+    const time = String(snap.now || "").slice(11, 16);
+    let index = -1;
+    apiEvents.forEach((evt, i) => {
+        if (evt[0] <= time) index = i;
+    });
+    return index;
+}
+
+function inferPostIndexFromSnapshot(snap) {
+    if (!snap) return -1;
+    const time = String(snap.now || "").slice(11, 16);
+    let index = -1;
+    postXlsxEvents.forEach((evt, i) => {
+        if (evt[0] <= time) index = i;
+    });
+    return index;
+}
+
+let playing = false;
+let playBusy = false;
+let playbackTimer = null;
+let activeEventIndex = -1;
+let activePostIndex = -1;
+const playbackProgressEl = document.getElementById("playbackProgress");
+const btnPlay = document.getElementById("btnPlay");
+const btnStep = document.getElementById("btnStep");
+const btnReset = document.getElementById("btnReset");
+
+function describeEvent(e) {
+    const [time, action, subject, mode, amount] = e;
+    if (action === "A" && amount === "0") return `${time} ${subject} 取消请求`;
+    if (action === "A") return `${time} ${subject} 申请${mode === "F" ? "快充" : "慢充"} ${amount} 度`;
+    if (action === "C") return `${time} ${subject} 改为${mode === "F" ? "快充" : "慢充"} ${amount} 度`;
+    if (action === "B") return `${time} ${subject} 故障 ${amount} 分钟`;
+    if (action === "R") return `${time} ${subject}`;
+    return `${time} ${action} ${subject}`;
+}
+
+function updatePlaybackProgress() {
+    const total = xlsxTimelineEvents.length;
+    if (activeEventIndex < 0) {
+        playbackProgressEl.textContent = `事件 — / ${total} · 待开始 · ${strategyLabel(faultStrategy)}`;
+    } else {
+        const e = activePostIndex >= 0 ? postXlsxEvents[activePostIndex] : apiEvents[activeEventIndex];
+        const current = activePostIndex >= 0 ? apiEvents.length + activePostIndex + 1 : activeEventIndex + 1;
+        playbackProgressEl.textContent = `事件 ${current} / ${total} · ${describeEvent(e)} · ${strategyLabel(faultStrategy)}`;
+    }
+}
+
+async function applyEventByIndex(idx) {
+    if (playBusy) return;
+    playBusy = true;
+    try {
+        const e = apiEvents[idx];
+        await EVAuth.api("/api/acceptance/event", {
+            method: "POST",
+            body: JSON.stringify({
+                time: e[0],
+                action: e[1],
+                subject: e[2],
+                mode: e[3],
+                amount: e[4],
+                strategy: faultStrategy
+            })
+        });
+        activeEventIndex = idx;
+        activePostIndex = -1;
+        updatePlaybackProgress();
+        // WebSocket will push the new snapshot and applySnapshot will animate.
+    } catch (err) {
+        showErr("事件投递失败：" + (err.message || err));
+        stopPlayback();
+    } finally {
+        playBusy = false;
+    }
+}
+
+async function stepForward() {
+    if (playBusy) return;
+    if (activeEventIndex < apiEvents.length - 1) {
+        await applyEventByIndex(activeEventIndex + 1);
+        return;
+    }
+    if (activePostIndex < postXlsxEvents.length - 1) {
+        await advanceToPostCheckpoint(activePostIndex + 1);
+        return;
+    }
+    {
+        // wrap: reset clock + restart from event 0
+        await resetBackend(false);
+        await applyEventByIndex(0);
+    }
+}
+
+function minutesBetween(from, to) {
+    const [fh, fm] = String(from || "00:00").split(":").map(Number);
+    const [th, tm] = String(to || "00:00").split(":").map(Number);
+    return Math.max(0, th * 60 + tm - (fh * 60 + fm));
+}
+
+async function advanceToPostCheckpoint(targetIndex) {
+    if (playBusy) return;
+    playBusy = true;
+    try {
+        if (activeEventIndex !== apiEvents.length - 1) {
+            await EVAuth.api("/api/admin/clock/reset?time=06:00", { method: "POST" });
+            await EVAuth.api("/api/admin/config", {
+                method: "POST",
+                body: JSON.stringify({ waitingCapacity: 10, pileSlotCapacity: 3, fastPileCount: 3, slowPileCount: 2 })
+            });
+            activeEventIndex = -1;
+            activePostIndex = -1;
+            for (let i = 0; i < apiEvents.length; i += 1) {
+                const e = apiEvents[i];
+                await EVAuth.api("/api/acceptance/event", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        time: e[0],
+                        action: e[1],
+                        subject: e[2],
+                        mode: e[3],
+                        amount: e[4],
+                        strategy: faultStrategy
+                    })
+                });
+                activeEventIndex = i;
+            }
+        }
+        for (let i = Math.max(0, activePostIndex + 1); i <= targetIndex; i += 1) {
+            const evt = postXlsxEvents[i];
+            const snap = await EVAuth.api("/api/admin/snapshot");
+            const currentTime = String(snap.now || "").slice(11, 16);
+            const delta = minutesBetween(currentTime, evt[0]);
+            if (delta > 0) {
+                await EVAuth.api(`/api/admin/clock/advance?minutes=${delta}`, { method: "POST" });
+            }
+            const refreshed = await EVAuth.api("/api/admin/snapshot");
+            lastSnapshot = refreshed;
+            applySnapshot(refreshed);
+            activeEventIndex = apiEvents.length - 1;
+            activePostIndex = i;
+            updatePlaybackProgress();
+            pushEvent("INFO", describeEvent(evt));
+        }
+    } catch (err) {
+        showErr("10:50 后推进失败：" + (err.message || err));
+        stopPlayback();
+    } finally {
+        playBusy = false;
+    }
+}
+
+async function resetBackend(stopPlay = true) {
+    if (stopPlay) stopPlayback();
+    if (playBusy) return;       // already mid-flight
+    playBusy = true;
+    try {
+        await EVAuth.api("/api/admin/clock/reset?time=06:00", { method: "POST" });
+        // also reset station config to defaults so playback re-runs at N=10/M=3/3+2
+        await EVAuth.api("/api/admin/config", {
+            method: "POST",
+            body: JSON.stringify({ waitingCapacity: 10, pileSlotCapacity: 3, fastPileCount: 3, slowPileCount: 2 })
+        });
+        activeEventIndex = -1;
+        activePostIndex = -1;
+        updatePlaybackProgress();
+        pushEvent("INFO", "已重置后端到 06:00 + N=10/M=3");
+    } catch (err) {
+        showErr("重置失败：" + (err.message || err));
+    } finally {
+        playBusy = false;
+    }
+}
+
+function stopPlayback() {
+    playing = false;
+    if (playbackTimer) { clearInterval(playbackTimer); playbackTimer = null; }
+    btnPlay.textContent = "▶ 播放验收";
+}
+
+function togglePlayback() {
+    if (playing) { stopPlayback(); return; }
+    playing = true;
+    btnPlay.textContent = "⏸ 暂停回放";
+    playbackTimer = setInterval(async () => {
+        if (!playing || playBusy) return;
+        if (activeEventIndex >= apiEvents.length - 1 && activePostIndex >= postXlsxEvents.length - 1) {
+            stopPlayback();
+            pushEvent("INFO", `回放完成 (${xlsxTimelineEvents.length}/${xlsxTimelineEvents.length})`);
+            return;
+        }
+        await stepForward();
+    }, 2600);  // 2.6s per event — lets the 2.4s motion animation finish before next snapshot
+}
+
+btnPlay.addEventListener("click", togglePlayback);
+btnStep.addEventListener("click", () => stepForward());
+btnReset.addEventListener("click", () => resetBackend(true));
+updatePlaybackProgress();
+
+// =========================================================================
+// 13) Animation loop
+// =========================================================================
+let t = 0;
+function tick() {
+    t += 0.016;
+    controls.update();
+    // smooth car motion (drive-in animation)
+    animateMotion();
+    // gentle status-lamp pulse
+    pileRoot.children.forEach(pile => {
+        const lamp = pile.getObjectByName("statusLamp");
+        if (lamp) lamp.material.emissiveIntensity = 2.0 + Math.sin(t * 2.5) * 0.4;
+    });
+    if (composer) composer.render();
+    else renderer.render(scene, camera);
+    requestAnimationFrame(tick);
+}
+
+function handleResize() {
+    const w = window.innerWidth, h = window.innerHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    if (composer) composer.setSize(w, h);
+}
+window.addEventListener("resize", handleResize);
+
+// =========================================================================
+// 14) Boot sequence
+// =========================================================================
+(async function main() {
+    try {
+        setLoader("正在加载 3D 资源 …");
+        // Mark fallback templates so buildXxxInstance can tell
+        const fbCar = createFallbackCar(); fbCar.userData.isFallback = true;
+        const fbPile = createFallbackPile(); fbPile.userData.isFallback = true;
+        const fbLamp = createFallbackLamp(); fbLamp.userData.isFallback = true;
+        const [carRes, pileRes, lampRes] = await Promise.all([
+            tryLoadGLB(FERRARI_URLS, () => fbCar),
+            tryLoadGLB(PILE_URLS, () => fbPile),
+            tryLoadGLB(LAMP_URLS, () => fbLamp)
+        ]);
+        assets.car = carRes;
+        assets.pile = pileRes;
+        assets.lamp = lampRes;
+        setAssetStatus({
+            "轿车": carRes.source,
+            "充电桩": pileRes.source,
+            "路灯": lampRes.source
+        });
+        setLoader("加载后端数据 …");
+        placeLamps();
+        await initialFetch();
+        setLoader("", true);
+        connectWebSocket();
+        tick();
+    } catch (e) {
+        console.error("[boot]", e);
+        showErr("初始化失败：" + e.message);
+        setLoader("加载失败：" + e.message);
+    }
+})();
+</script>
+</body>
+</html>

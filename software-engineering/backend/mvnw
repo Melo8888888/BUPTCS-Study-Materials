@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+BASE_DIR="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
+WRAPPER_DIR="$BASE_DIR/.mvn/wrapper"
+MAVEN_HOME="$WRAPPER_DIR/apache-maven-3.9.9"
+MAVEN_CMD="$MAVEN_HOME/bin/mvn"
+if [ ! -x "$MAVEN_CMD" ]; then
+  URL="$(grep '^distributionUrl=' "$WRAPPER_DIR/maven-wrapper.properties" | sed 's/^distributionUrl=//')"
+  ZIP="$WRAPPER_DIR/apache-maven-3.9.9-bin.zip"
+  if command -v curl >/dev/null 2>&1; then
+    curl -L "$URL" -o "$ZIP"
+  else
+    wget "$URL" -O "$ZIP"
+  fi
+  unzip -o "$ZIP" -d "$WRAPPER_DIR"
+fi
+exec "$MAVEN_CMD" "$@"

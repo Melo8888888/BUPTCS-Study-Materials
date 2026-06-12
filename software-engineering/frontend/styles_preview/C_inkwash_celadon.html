@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 C · 宣纸青瓷</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;700;900&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAF7F0;          /* 宣纸米白 */
+  --surface: #FFFEFB;
+  --ink: #2E2E2E;          /* 墨 */
+  --celadon: #87A7B3;      /* 汝窑天青 */
+  --celadon-dark: #5E8290;
+  --line: rgba(155,138,163,0.35);
+  --gold: #DDB892;
+  --gold-strong: #C2A06A;
+  --highlight: #F5C842;
+  --green: #B5C4B1;
+  --green-text: #5E7A5A;
+  --rust: #D4A29C;
+  --rust-text: #8A4F47;
+  --muted: #8B7E8E;
+  --radius: 14px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background:
+    radial-gradient(circle at 20% 15%, rgba(135,167,179,0.06), transparent 45%),
+    radial-gradient(circle at 90% 90%, rgba(221,184,146,0.07), transparent 50%),
+    var(--bg);
+  color: var(--ink);
+  font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px; line-height: 1.6;
+  font-feature-settings: "tnum", "palt";
+}
+.serif { font-family: "Noto Serif SC", "Source Han Serif SC", "STSong", serif; font-weight: 700; }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  height: 64px; padding: 0 36px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.logo { display: flex; align-items: center; gap: 14px; }
+.seal {
+  width: 36px; height: 36px; border-radius: 8px;
+  background: var(--rust); color: var(--surface);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: "Noto Serif SC", serif; font-weight: 900; font-size: 18px;
+  letter-spacing: -0.04em;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.5);
+  position: relative;
+}
+.seal::after {
+  content: ""; position: absolute; inset: 3px; border: 1px solid rgba(255,255,255,0.5); border-radius: 5px;
+}
+.logo h1 {
+  margin: 0; font-family: "Noto Serif SC", serif; font-weight: 700; font-size: 17px;
+  letter-spacing: 0.08em;
+}
+.menu { display: flex; gap: 6px; margin-left: 40px; flex: 1; }
+.menu a {
+  padding: 22px 16px; color: var(--muted); text-decoration: none;
+  font-size: 14px; font-weight: 500; position: relative;
+}
+.menu a.active { color: var(--ink); font-weight: 700; }
+.menu a.active::after {
+  content: ""; position: absolute; bottom: 0; left: 16px; right: 16px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold-strong) 0%, transparent 100%);
+}
+.menu a:hover { color: var(--ink); }
+.user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); }
+.user .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--celadon); color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-family: "Noto Serif SC", serif; font-weight: 700;
+}
+
+/* Container */
+.container { max-width: 1280px; margin: 0 auto; padding: 36px 36px 80px; }
+.page-title {
+  margin: 0 0 8px; font-family: "Noto Serif SC", serif;
+  font-size: 30px; font-weight: 900; letter-spacing: 0.2em;
+  display: flex; align-items: center; gap: 16px;
+}
+.page-title::before {
+  content: ""; width: 28px; height: 3px; background: var(--ink); display: inline-block;
+}
+.page-sub {
+  color: var(--muted); font-size: 13px; margin-bottom: 32px;
+  letter-spacing: 0.06em;
+}
+
+/* Hairline divider */
+.hairline {
+  height: 0.5px;
+  background: linear-gradient(90deg, var(--gold-strong) 0%, var(--line) 30%, transparent 100%);
+  margin: 22px 0;
+}
+
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; margin-bottom: 36px; }
+.kpi {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px 22px; position: relative; overflow: hidden;
+  box-shadow: 0 18px 40px rgba(46,46,46,0.04);
+}
+.kpi::before {
+  content: ""; position: absolute; top: 22px; left: 0; width: 4px; height: 26px;
+  background: var(--celadon); border-radius: 0 2px 2px 0;
+}
+.kpi .label {
+  font-family: "Noto Serif SC", serif; font-weight: 500;
+  font-size: 13px; color: var(--muted); margin-bottom: 12px; padding-left: 12px;
+  letter-spacing: 0.18em;
+}
+.kpi .value {
+  padding-left: 12px;
+  font-family: "Noto Serif SC", serif; font-size: 32px; font-weight: 900; line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+.kpi .unit { margin-left: 6px; font-family: "Noto Sans SC", sans-serif; font-size: 13px; color: var(--muted); font-weight: 400; }
+
+/* Section title */
+.section-title {
+  margin: 0 0 18px; display: flex; align-items: baseline; gap: 14px;
+  font-family: "Noto Serif SC", serif; font-size: 22px; font-weight: 700; letter-spacing: 0.18em;
+}
+.section-title::before {
+  content: ""; width: 4px; height: 22px; background: var(--celadon);
+}
+.section-title .annot {
+  font-family: "Noto Sans SC", sans-serif;
+  font-size: 12px; font-weight: 400; color: var(--muted); letter-spacing: 0.08em;
+}
+
+/* Pile grid */
+.pile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 36px; }
+.pile-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 24px; position: relative;
+  box-shadow: 0 18px 40px rgba(46,46,46,0.04);
+}
+.pile-card .head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+  padding-bottom: 14px; border-bottom: 0.5px solid var(--line);
+}
+.pile-card h3 { margin: 0; font-family: "Noto Serif SC", serif; font-weight: 700; font-size: 18px; letter-spacing: 0.16em; }
+.pile-card .seal-tag {
+  font-family: "Noto Serif SC", serif; font-weight: 700;
+  padding: 4px 10px; border-radius: 4px; font-size: 12px; letter-spacing: 0.14em;
+  border: 1.5px solid currentColor; background: transparent;
+}
+.pile-card .seal-tag.ok { color: var(--green-text); }
+.pile-card .seal-tag.warn { color: var(--rust-text); background: var(--rust); color: #fff; border-color: var(--rust); }
+
+.pile-card dl {
+  margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 8px 18px;
+  font-size: 13px;
+}
+.pile-card dl dt { color: var(--muted); letter-spacing: 0.1em; }
+.pile-card dl dd { margin: 0; font-weight: 600; color: var(--ink); }
+.pile-card dl dd.cel { color: var(--celadon-dark); }
+.pile-card .actions {
+  margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap;
+}
+
+/* Buttons */
+.btn {
+  padding: 6px 16px; border: 1px solid var(--ink); border-radius: 999px;
+  background: transparent; color: var(--ink); font-size: 12px; font-weight: 500;
+  letter-spacing: 0.1em; cursor: pointer; transition: all 0.2s;
+  font-family: "Noto Sans SC", sans-serif;
+}
+.btn:hover { background: var(--ink); color: var(--surface); }
+.btn.primary { background: var(--ink); color: var(--surface); }
+.btn.primary:hover { background: var(--celadon-dark); border-color: var(--celadon-dark); }
+.btn.warn { color: var(--rust-text); border-color: var(--rust); }
+.btn.warn:hover { background: var(--rust); color: #fff; }
+
+/* Two col */
+.two-col { display: grid; grid-template-columns: 360px 1fr; gap: 18px; margin-bottom: 36px; }
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  overflow: hidden; box-shadow: 0 18px 40px rgba(46,46,46,0.04);
+}
+.panel-head {
+  padding: 18px 22px; border-bottom: 0.5px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-head h3 {
+  margin: 0; font-family: "Noto Serif SC", serif;
+  font-weight: 700; font-size: 16px; letter-spacing: 0.16em;
+}
+.panel-head .tag {
+  font-size: 11px; padding: 3px 10px; border-radius: 999px;
+  background: rgba(135,167,179,0.15); color: var(--celadon-dark);
+  letter-spacing: 0.08em; font-weight: 600;
+}
+
+.wait-row {
+  display: grid; grid-template-columns: 56px 1fr; gap: 16px;
+  padding: 16px 22px; align-items: center;
+  border-bottom: 0.5px solid var(--line);
+}
+.wait-row:last-child { border-bottom: none; }
+.wait-row .qno {
+  width: 56px; height: 56px; border-radius: 50%;
+  background: var(--celadon); color: #fff;
+  font-family: "Noto Serif SC", serif; font-weight: 700;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 14px; letter-spacing: 0.06em;
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.4);
+}
+.wait-row .vid { font-family: "Noto Serif SC", serif; font-weight: 700; font-size: 17px; }
+.wait-row .desc { color: var(--muted); font-size: 12px; letter-spacing: 0.08em; }
+
+/* Detail table */
+table.detail { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.detail th, table.detail td { padding: 14px 22px; text-align: left; }
+table.detail thead th {
+  font-family: "Noto Serif SC", serif; font-weight: 700;
+  font-size: 12px; color: var(--muted); letter-spacing: 0.18em;
+  border-bottom: 0.5px solid var(--line);
+}
+table.detail tbody tr { border-bottom: 0.5px dashed var(--line); }
+table.detail tbody tr:last-child { border-bottom: none; }
+table.detail td.num { text-align: right; font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; }
+table.detail td.serif-num { font-family: "Noto Serif SC", serif; font-weight: 700; }
+.tag-mini {
+  padding: 2px 8px; border-radius: 3px; font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; font-family: "Noto Serif SC", serif;
+}
+.tag-mini.ok { background: rgba(181,196,177,0.25); color: var(--green-text); }
+.tag-mini.warn { background: rgba(212,162,156,0.25); color: var(--rust-text); }
+
+.foot {
+  margin-top: 32px; padding: 16px 22px;
+  font-family: "Noto Serif SC", serif; font-size: 12px; letter-spacing: 0.14em;
+  color: var(--muted); border-top: 0.5px solid var(--line); text-align: center;
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">
+    <span class="seal">電</span>
+    <h1>智 能 充 電 樁 調 度 計 費 系 統</h1>
+  </div>
+  <div class="menu">
+    <a href="#">充电桩监控</a>
+    <a href="#" class="active">等候队列</a>
+    <a href="#">报表管理</a>
+  </div>
+  <div class="user"><span class="avatar">徐</span>管理员 · 徐工</div>
+</nav>
+
+<main class="container">
+  <h1 class="page-title serif">隊 列 總 覽</h1>
+  <div class="page-sub">系 统 时 间 · 二〇二六 / 五 / 一二 · 一〇 时 五〇 分 · 验 收 事 件 32 / 32</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">累 计 次 数</div><div class="value">20<span class="unit">次</span></div></div>
+    <div class="kpi"><div class="label">累 计 电 量</div><div class="value">522.50<span class="unit">度</span></div></div>
+    <div class="kpi"><div class="label">累 计 费 用</div><div class="value">819.25<span class="unit">元</span></div></div>
+    <div class="kpi"><div class="label">故 障 桩</div><div class="value">2<span class="unit">个</span></div></div>
+  </div>
+
+  <div class="hairline"></div>
+
+  <!-- Pile grid -->
+  <div class="section-title">充 电 桩 实 时 监 控 <span class="annot">· 3 快充 / 2 慢充 · N=10 · M=3</span></div>
+  <div class="pile-grid">
+    <div class="pile-card">
+      <div class="head"><h3>F 一 · 快 充</h3><span class="seal-tag warn">丹 · 故 障</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="serif">122.50 度</dd></dl>
+      <div class="actions"><button class="btn">故障恢复</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>F 二 · 快 充</h3><span class="seal-tag ok">青 · 工 作</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd class="cel">V15</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="serif">90.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>F 三 · 快 充</h3><span class="seal-tag ok">青 · 工 作</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd class="cel">V19</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="serif">105.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>T 一 · 慢 充</h3><span class="seal-tag warn">丹 · 故 障</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="serif">45.00 度</dd></dl>
+      <div class="actions"><button class="btn">故障恢复</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>T 二 · 慢 充</h3><span class="seal-tag ok">青 · 工 作</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd class="cel">V12</dd><dt>桩内队列</dt><dd>V13、V17</dd><dt>累计电量</dt><dd class="serif">42.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">优先级</button><button class="btn">时间顺序</button></div>
+    </div>
+  </div>
+
+  <div class="hairline"></div>
+
+  <!-- Waiting + details -->
+  <div class="two-col">
+    <div class="panel">
+      <div class="panel-head"><h3>等 候 区 · 慢 充</h3><span class="tag">2 / 10</span></div>
+      <div class="wait-row"><div class="qno">T 七</div><div><div class="vid">V10</div><div class="desc">请 求 10 度 · 等 待 叫 号</div></div></div>
+      <div class="wait-row"><div class="qno">T 十</div><div><div class="vid">V16</div><div class="desc">请 求 5 度 · 等 待 叫 号</div></div></div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-head"><h3>账 单 与 详 单</h3><span class="tag">20 条</span></div>
+      <table class="detail">
+        <thead><tr><th>车号</th><th>桩</th><th>起 → 止</th><th class="num">电量</th><th class="num">总费用</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td>V6</td><td>T1</td><td>10:00 → 10:30</td><td class="num serif-num">5.00</td><td class="num serif-num">9.00</td><td><span class="tag-mini warn">丹 · 中 断</span></td></tr>
+          <tr><td>V14</td><td>F3</td><td>08:10 → 10:40</td><td class="num serif-num">75.00</td><td class="num serif-num">118.50</td><td><span class="tag-mini ok">青 · 完 成</span></td></tr>
+          <tr><td>V8</td><td>F2</td><td>07:00 → 10:00</td><td class="num serif-num">90.00</td><td class="num serif-num">135.00</td><td><span class="tag-mini ok">青 · 完 成</span></td></tr>
+          <tr><td>V1</td><td>T1</td><td>06:00 → 10:00</td><td class="num serif-num">40.00</td><td class="num serif-num">57.00</td><td><span class="tag-mini ok">青 · 完 成</span></td></tr>
+          <tr><td>V3</td><td>F1</td><td>06:10 → 08:10</td><td class="num serif-num">60.00</td><td class="num serif-num">82.50</td><td><span class="tag-mini ok">青 · 完 成</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">方 案 C · 宣 纸 青 瓷 · #FAF7F0 + 纸 纹 / #87A7B3 / #DDB892 · 思 源 宋 体 · 0.5px 金 线</div>
+</main>
+</body>
+</html>

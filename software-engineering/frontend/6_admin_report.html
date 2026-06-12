@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>报表与账单 - 管理控制台</title>
+<link rel="stylesheet" href="common.css">
+<style>
+/* 6_admin_report 页特定样式 — 不再覆盖 .nav（来自 common.css 的胶囊玻璃） */
+.filter-grid label { display:block; margin-bottom:6px; color:var(--muted); font-size:12px; font-weight:700; }
+.chart-box {
+    height: 240px;
+    border-radius: var(--radius-sm);
+    background: rgba(255,255,255,0.35);
+    border: 1px solid var(--line-soft);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.6);
+    display: flex; align-items: end; gap: 14px;
+    padding: 26px 22px 38px;
+}
+.bar {
+    flex: 1; min-width: 42px;
+    border-radius: 8px 8px 0 0;
+    background: linear-gradient(180deg, #9CB9C5 0%, var(--celadon) 60%, var(--celadon-deep) 100%);
+    position: relative; transition: height .3s ease;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 4px 12px -2px rgba(135,167,179,0.30);
+}
+.bar::after { content: attr(data-label); position: absolute; left: 50%; bottom: -24px; transform: translateX(-50%); color: var(--muted); font-size: 12px; font-weight: 590; }
+.bar::before { content: attr(data-value); position: absolute; left: 50%; top: -22px; transform: translateX(-50%); color: var(--text); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.table-wrap { overflow: auto; }
+@media (max-width: 980px) { .filter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .filter-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统 · 管理控制台</div>
+    <div class="menu">
+        <a href="4_admin_piles.html">充电桩监控</a>
+        <a href="5_admin_queue.html">等待队列</a>
+        <a href="#" class="active">报表与账单</a>
+        <a href="7_cinema_3d.html">院线 3D 视图 →</a>
+    </div>
+    <div class="user"><div class="avatar">管</div><span id="roleText">管理员</span></div>
+</nav>
+
+<main class="container">
+    <h1 class="page-title">运营报表与账单管理</h1>
+
+    <div class="toolbar">
+        <span class="tag tag-info ws-state"><span class="ws-dot" id="wsDot"></span><span id="wsText">WebSocket 连接中</span></span>
+        <button class="btn btn-primary" id="refreshBtn">刷新报表</button>
+        <button class="btn btn-default" id="runAcceptanceBtn">载入验收用例</button>
+        <button class="btn btn-default" id="exportCsvBtn">导出 CSV/Excel</button>
+    </div>
+
+    <section class="card">
+        <div class="card-title"><span>筛选条件</span><span class="tag tag-info" id="filterMeta">全部数据</span></div>
+        <div class="filter-grid">
+            <div>
+                <label for="scopeFilter">统计周期</label>
+                <select id="scopeFilter" class="select">
+                    <option value="DAY">日</option>
+                    <option value="WEEK">周</option>
+                    <option value="MONTH">月</option>
+                    <option value="ALL">全部</option>
+                </select>
+            </div>
+            <div>
+                <label for="pileFilter">充电桩</label>
+                <select id="pileFilter" class="select">
+                    <option value="">全部充电桩</option>
+                </select>
+            </div>
+            <div>
+                <label for="modeFilter">类型</label>
+                <select id="modeFilter" class="select">
+                    <option value="">全部类型</option>
+                    <option value="FAST">快充</option>
+                    <option value="SLOW">慢充</option>
+                </select>
+            </div>
+            <div>
+                <label for="vehicleFilter">车辆编号</label>
+                <input id="vehicleFilter" class="input" placeholder="例如 V21">
+            </div>
+            <div>
+                <button class="btn btn-primary" id="applyFilterBtn" style="width:100%;">应用筛选</button>
+            </div>
+        </div>
+    </section>
+
+    <div class="info-grid">
+        <div class="info-card"><div class="label">累计充电次数</div><div class="value" id="detailCount">-<span class="unit">次</span></div></div>
+        <div class="info-card"><div class="label">累计充电量</div><div class="value" id="totalKwh">-<span class="unit">度</span></div></div>
+        <div class="info-card"><div class="label">累计时长</div><div class="value" id="durationCount">-<span class="unit">分钟</span></div></div>
+        <div class="info-card"><div class="label">累计费用</div><div class="value" id="totalFee">-<span class="unit">元</span></div></div>
+    </div>
+
+    <section class="card">
+        <div class="card-title">
+            <span>实时运营概览</span>
+            <span class="tag tag-info" id="stationTime">-</span>
+        </div>
+        <div class="chart-box" id="chartBox"></div>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>按充电桩明细</span></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr><th>充电桩</th><th>类型</th><th>状态</th><th>当前车辆</th><th>桩内队列</th><th>次数</th><th>时长</th><th>电量</th><th>充电费</th><th>服务费</th><th>总费用</th></tr>
+                </thead>
+                <tbody id="pileRows"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>账单与详单查询</span><span class="tag tag-info" id="detailMeta">0 条</span></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>详单编号</th><th>车辆</th><th>充电桩</th><th>充电电量</th><th>充电时长</th><th>启动时间</th><th>停止时间</th><th>充电费</th><th>服务费</th><th>总费用</th>
+                    </tr>
+                </thead>
+                <tbody id="billRows"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-title">
+            <span>超时停车费</span>
+            <span class="btn-group">
+                <button class="btn btn-primary" id="scanParkingBtn">立即扫描</button>
+                <button class="btn" id="reloadParkingBtn">刷新</button>
+            </span>
+        </div>
+        <div id="parkingAdminMsg" class="tag tag-info" style="display:none;"></div>
+        <div class="table-wrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>车辆</th><th>对应详单</th><th>充电桩</th><th>超时分钟</th><th>单价</th><th>金额</th><th>生成时间</th><th>状态</th>
+                    </tr>
+                </thead>
+                <tbody id="parkingAdminRows"><tr><td colspan="8" class="muted">尚未扫描</td></tr></tbody>
+            </table>
+        </div>
+    </section>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect("ADMIN")) { throw new Error("admin required"); }
+const API_BASE = EVAuth.apiBase();
+let report = null;
+let snapshot = null;
+let details = [];
+const $ = (id) => document.getElementById(id);
+
+function money(value) { return Number(value || 0).toFixed(2); }
+function kwh(value) { return Number(value || 0).toFixed(2); }
+function modeText(mode) { return mode === "FAST" ? "快充" : "慢充"; }
+function time(value) { return String(value || "-").replace("T", " ").slice(0, 16); }
+function minutes(value) {
+    const total = Number(value || 0);
+    const hours = Math.floor(total / 60);
+    const mins = total % 60;
+    return hours ? `${hours}小时${mins}分钟` : `${mins}分钟`;
+}
+function statusText(status) {
+    if (status === "FAULT") return "故障";
+    if (status === "DISABLED") return "停用";
+    return "工作中";
+}
+function statusTag(status) {
+    if (status === "FAULT") return "tag-danger";
+    if (status === "DISABLED") return "tag-warning";
+    return "tag-success";
+}
+
+function queryString() {
+    const params = new URLSearchParams();
+    params.set("scope", $("scopeFilter").value);
+    if ($("pileFilter").value) params.set("pileId", $("pileFilter").value);
+    if ($("modeFilter").value) params.set("mode", $("modeFilter").value);
+    if ($("vehicleFilter").value.trim()) params.set("vehicleId", $("vehicleFilter").value.trim());
+    return params.toString();
+}
+
+async function loadAll() {
+    const query = queryString();
+    [report, snapshot, details] = await Promise.all([
+        api(`/api/admin/reports/summary?${query}`),
+        api("/api/admin/snapshot"),
+        api(`/api/admin/reports/details?${query}`)
+    ]);
+    hydratePileFilter();
+    render();
+    loadParkingFees().catch(() => {});
+}
+
+function setParkingAdminMsg(text, kind = "info") {
+    const box = $("parkingAdminMsg");
+    if (!text) { box.style.display = "none"; return; }
+    box.style.display = "inline-flex";
+    box.className = `tag tag-${kind}`;
+    box.textContent = text;
+}
+
+async function loadParkingFees() {
+    const fees = await api("/api/admin/parking-fees");
+    renderParkingFees(fees || []);
+}
+
+function renderParkingFees(fees) {
+    if (!fees.length) {
+        $("parkingAdminRows").innerHTML = `<tr><td colspan="8" class="muted">暂无停车费记录，可点"立即扫描"生成</td></tr>`;
+        return;
+    }
+    $("parkingAdminRows").innerHTML = fees.map(f => `
+        <tr>
+            <td>${f.vehicleId}</td>
+            <td>${f.billDetailNo}</td>
+            <td>${f.pileId || "-"}</td>
+            <td>${f.overTimeMinutes} 分钟</td>
+            <td>${Number(f.ratePerMinute || 0).toFixed(2)} 元/分</td>
+            <td><strong>${money(f.amount)} 元</strong></td>
+            <td>${time(f.generatedAt)}</td>
+            <td><span class="tag ${f.paid ? "tag-success" : "tag-warning"}">${f.paid ? "已支付" : "待支付"}</span></td>
+        </tr>
+    `).join("");
+}
+
+async function scanParkingFees() {
+    try {
+        const generated = await api("/api/admin/parking-fee/scan", { method: "POST" });
+        setParkingAdminMsg(`扫描完毕，新增 ${generated.length} 条停车费记录。`, "success");
+        await loadParkingFees();
+    } catch (e) {
+        setParkingAdminMsg(e.message, "danger");
+    }
+}
+
+function hydratePileFilter() {
+    const select = $("pileFilter");
+    const current = select.value;
+    const piles = (snapshot?.piles || []).map((pile) => pile.id);
+    select.innerHTML = `<option value="">全部充电桩</option>` + piles.map((id) => `<option value="${id}">${id}</option>`).join("");
+    select.value = piles.includes(current) ? current : "";
+}
+
+function render() {
+    $("roleText").textContent = localStorage.getItem("ev.role") === "vehicle" ? "车辆端预览" : "管理员";
+    $("detailCount").innerHTML = `${report.detailCount}<span class="unit">次</span>`;
+    $("totalKwh").innerHTML = `${kwh(report.totalKwh)}<span class="unit">度</span>`;
+    $("durationCount").innerHTML = `${report.totalDurationMinutes || 0}<span class="unit">分钟</span>`;
+    $("totalFee").innerHTML = `${money(report.totalFee)}<span class="unit">元</span>`;
+    $("stationTime").textContent = `系统时间 ${time(report.now)}`;
+    $("detailMeta").textContent = `${details.length} 条`;
+    $("filterMeta").textContent = filterMetaText();
+
+    const chartItems = [
+        ["请求", report.requestCount],
+        ["活跃", report.activeRequestCount],
+        ["等候", report.waitingCount],
+        ["充电", report.chargingCount],
+        ["桩队列", report.pileQueueCount],
+        ["详单", report.detailCount]
+    ];
+    const max = Math.max(...chartItems.map(([, value]) => value), 1);
+    $("chartBox").innerHTML = chartItems.map(([label, value]) => `
+        <div class="bar" style="height:${Math.max(8, value / max * 100)}%;" data-label="${label}" data-value="${value}"></div>
+    `).join("");
+
+    $("pileRows").innerHTML = (report.piles || []).map((pile) => `
+        <tr>
+            <td>${pile.pileId}</td>
+            <td>${modeText(pile.mode)}</td>
+            <td><span class="tag ${statusTag(pile.status)}">${statusText(pile.status)}</span></td>
+            <td>${pile.currentVehicle || "空闲"}</td>
+            <td>${pile.queuedCount}</td>
+            <td>${pile.completedDetailCount}</td>
+            <td>${minutes(pile.durationMinutes)}</td>
+            <td>${kwh(pile.chargedKwh)} 度</td>
+            <td>${money(pile.chargeFee)} 元</td>
+            <td>${money(pile.serviceFee)} 元</td>
+            <td><strong>${money(pile.totalFee)} 元</strong></td>
+        </tr>
+    `).join("") || `<tr><td colspan="11">当前筛选条件下没有充电桩统计。</td></tr>`;
+
+    $("billRows").innerHTML = details.length ? details.slice().reverse().map((detail) => `
+        <tr>
+            <td>${detail.detailNo}</td>
+            <td>${detail.vehicleId}</td>
+            <td>${detail.pileId}</td>
+            <td>${kwh(detail.chargedKwh)} 度</td>
+            <td>${detail.durationMinutes} 分钟</td>
+            <td>${time(detail.startedAt)}</td>
+            <td>${time(detail.stoppedAt)}</td>
+            <td>${money(detail.chargeFee)} 元</td>
+            <td>${money(detail.serviceFee)} 元</td>
+            <td><strong>${money(detail.totalFee)} 元</strong></td>
+        </tr>
+    `).join("") : `<tr><td colspan="10">暂无匹配详单。</td></tr>`;
+}
+
+function filterMetaText() {
+    const scope = ({ DAY: "日", WEEK: "周", MONTH: "月", ALL: "全部" })[$("scopeFilter").value];
+    const pile = $("pileFilter").value || "全部桩";
+    const mode = $("modeFilter").value ? modeText($("modeFilter").value) : "全部类型";
+    const vehicle = $("vehicleFilter").value.trim() || "全部车辆";
+    return `${scope} · ${pile} · ${mode} · ${vehicle}`;
+}
+
+function exportCsv() {
+    const rows = [
+        ["筛选", filterMetaText()],
+        [],
+        ["详单编号", "车辆", "充电桩", "电量(度)", "时长(分钟)", "启动时间", "停止时间", "充电费", "服务费", "总费用"],
+        ...details.map((detail) => [
+            detail.detailNo,
+            detail.vehicleId,
+            detail.pileId,
+            kwh(detail.chargedKwh),
+            detail.durationMinutes,
+            time(detail.startedAt),
+            time(detail.stoppedAt),
+            money(detail.chargeFee),
+            money(detail.serviceFee),
+            money(detail.totalFee)
+        ]),
+        [],
+        ["充电桩", "类型", "状态", "次数", "时长(分钟)", "电量(度)", "充电费", "服务费", "总费用"],
+        ...(report.piles || []).map((pile) => [
+            pile.pileId,
+            modeText(pile.mode),
+            statusText(pile.status),
+            pile.completedDetailCount,
+            pile.durationMinutes,
+            kwh(pile.chargedKwh),
+            money(pile.chargeFee),
+            money(pile.serviceFee),
+            money(pile.totalFee)
+        ])
+    ];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(",")).join("\r\n");
+    const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `ev-charge-report-${$("scopeFilter").value.toLowerCase()}-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+function setWsState(text, color) {
+    $("wsText").textContent = text;
+    $("wsDot").style.background = color;
+    $("wsDot").style.boxShadow = `0 0 0 4px ${color}22`;
+}
+
+function connectWebSocket() {
+    if (!location.origin.startsWith("http")) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+    socket.addEventListener("open", () => {
+        socket.send(`CONNECT\naccept-version:1.2\nhost:${location.host}\nheart-beat:10000,10000\n\n\u0000`);
+    });
+    socket.addEventListener("message", (event) => {
+        String(event.data).split("\u0000").filter(Boolean).forEach(async (raw) => {
+            if (raw.startsWith("CONNECTED")) {
+                socket.send("SUBSCRIBE\nid:admin-report\ndestination:/topic/station\n\n\u0000");
+                setWsState("WebSocket 已连接", "#2b8a3e");
+            }
+            if (raw.startsWith("MESSAGE")) {
+                await loadAll();
+                setWsState("最后推送已同步", "#1c7ed6");
+            }
+        });
+    });
+    socket.addEventListener("close", () => {
+        setWsState("WebSocket 已断开，3 秒后重连", "#f59f00");
+        setTimeout(connectWebSocket, 3000);
+    });
+    socket.addEventListener("error", () => setWsState("WebSocket 暂不可用", "#c92a2a"));
+}
+
+$("refreshBtn").addEventListener("click", loadAll);
+$("applyFilterBtn").addEventListener("click", loadAll);
+$("exportCsvBtn").addEventListener("click", exportCsv);
+["scopeFilter", "pileFilter", "modeFilter"].forEach((id) => $(id).addEventListener("change", loadAll));
+$("vehicleFilter").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") loadAll();
+});
+$("runAcceptanceBtn").addEventListener("click", async () => {
+    await api("/api/acceptance/run-default", { method: "POST" });
+    await loadAll();
+});
+$("scanParkingBtn").addEventListener("click", scanParkingFees);
+$("reloadParkingBtn").addEventListener("click", () => loadParkingFees().catch(e => setParkingAdminMsg(e.message, "danger")));
+
+loadAll().catch((error) => setWsState(error.message, "#c92a2a"));
+connectWebSocket();
+</script>
+</body>
+</html>

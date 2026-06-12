@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EV 主题 glTF 模型候选画廊</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+:root {
+  --paper: #FAF7F0;
+  --ink: #2E2E2E;
+  --muted: rgba(46,46,46,0.55);
+  --celadon: #87A7B3;
+  --celadon-deep: #5E8290;
+  --line: rgba(199,184,161,0.40);
+  --green-text: #5E7A5A;
+  --rust-text: #8A4F47;
+  --gold-text: #7A5A2E;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; min-height: 100vh;
+  background:
+    radial-gradient(ellipse 62% 50% at 18% 12%, #C9D2DA 0%, transparent 58%),
+    radial-gradient(ellipse 55% 45% at 82% 22%, #ECC7C2 0%, transparent 60%),
+    radial-gradient(ellipse 52% 42% at 50% 92%, #F0DCBE 0%, transparent 55%),
+    radial-gradient(ellipse 58% 50% at 10% 82%, #C7BCD0 0%, transparent 58%),
+    radial-gradient(ellipse 50% 40% at 95% 78%, #CFDAC9 0%, transparent 55%),
+    var(--paper);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter", "Noto Sans SC", "PingFang SC", sans-serif;
+  font-size: 14px; line-height: 1.5;
+  font-feature-settings: "tnum", "kern";
+  letter-spacing: -0.005em;
+}
+header {
+  padding: 36px 32px 18px;
+  max-width: 1480px; margin: 0 auto;
+}
+header h1 { margin: 0 0 6px; font-size: 28px; font-weight: 700; letter-spacing: -0.022em; }
+header p { color: var(--muted); margin: 0 0 4px; }
+header .grade {
+  display: inline-flex; gap: 8px; align-items: center; padding: 4px 12px;
+  background: rgba(255,255,255,0.55); border-radius: 999px; font-size: 12px;
+  color: var(--celadon-deep); font-weight: 590;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+  margin-top: 8px;
+}
+.section-title {
+  max-width: 1480px; margin: 32px auto 14px; padding: 0 32px;
+  font-size: 14px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: var(--celadon-deep);
+  display: flex; align-items: center; gap: 12px;
+}
+.section-title::before { content: ""; width: 3px; height: 14px; background: var(--celadon); border-radius: 2px; }
+.section-title .line { flex: 1; height: 1px; background: linear-gradient(90deg, var(--line), transparent); }
+
+.grid {
+  max-width: 1480px; margin: 0 auto; padding: 0 32px 32px;
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 18px;
+}
+
+.card {
+  position: relative;
+  background: rgba(255,255,255,0.42);
+  -webkit-backdrop-filter: blur(38px) saturate(165%); backdrop-filter: blur(38px) saturate(165%);
+  border: 1px solid transparent;
+  border-radius: 18px;
+  box-shadow:
+    0 1.5px 1px rgba(255,255,255,0.85) inset,
+    0 -1px 1.5px rgba(155,138,163,0.08) inset,
+    0 12px 36px -10px rgba(110,90,80,0.18);
+  overflow: hidden;
+}
+.card::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.85), rgba(255,255,255,0.22) 30%, rgba(199,184,161,0.20) 70%, rgba(255,255,255,0.70));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+.stage {
+  height: 240px; position: relative;
+  background: radial-gradient(ellipse at center 75%, rgba(135,167,179,0.18) 0%, transparent 65%);
+}
+.stage model-viewer { width: 100%; height: 100%; background: transparent; }
+.info { padding: 16px 18px 18px; }
+.info h3 {
+  margin: 0 0 4px; font-size: 17px; font-weight: 700; letter-spacing: -0.018em;
+  display: flex; align-items: center; gap: 10px;
+}
+.info h3 .rank {
+  font-family: "JetBrains Mono", ui-monospace, monospace;
+  font-size: 10px; padding: 2px 7px; border-radius: 999px;
+  background: rgba(135,167,179,0.18); color: var(--celadon-deep);
+}
+.info h3 .rank.s5 { background: rgba(240,210,101,0.30); color: #7A5A2E; }
+.info .meta {
+  display: flex; gap: 12px; flex-wrap: wrap; margin-top: 4px;
+  font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--muted);
+}
+.info .desc { margin-top: 8px; color: rgba(46,46,46,0.78); font-size: 13px; }
+.info .pick {
+  margin-top: 12px; display: flex; gap: 6px; flex-wrap: wrap;
+}
+.info .pick .chip {
+  padding: 3px 10px; border-radius: 999px;
+  background: rgba(255,255,255,0.6); border: 1px solid var(--line);
+  font-size: 11px; color: var(--ink); font-weight: 590;
+}
+.info .pick .chip.rec { background: rgba(138,174,138,0.20); color: var(--green-text); border-color: transparent; }
+</style>
+</head>
+<body>
+<header>
+  <h1>EV 主题 glTF 模型候选画廊</h1>
+  <p>所有模型来自 <strong>KhronosGroup</strong>（glTF-Sample-Models / glTF-Sample-Assets）。挑选时同时考虑：主题契合度 / 文件大小 / 视觉质量。</p>
+  <div class="grade">建议参考：1_charge_request / 3_my_bills（轻量&lt;6MB）；admin 装饰可承受 5-8MB；登录页可上到 12MB</div>
+</header>
+
+<div class="section-title">车辆类（VEHICLES）<span class="line"></span></div>
+<div class="grid">
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/CarConcept/glTF-Binary/CarConcept.glb"
+        camera-orbit="-30deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="22deg"
+        exposure="1.10" shadow-intensity="0.9" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>CarConcept <span class="rank s5">★ 主题最契合</span></h3>
+      <div class="meta"><span>11.8 MB</span><span>glTF-Sample-Assets</span><span>PBR + clearcoat</span></div>
+      <div class="desc">现代概念车造型，最像"未来 EV"。文件最大，但视觉冲击最强。</div>
+      <div class="pick"><span class="chip rec">推荐登录页</span><span class="chip">candidate · 0_login</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ToyCar/glTF-Binary/ToyCar.glb"
+        camera-orbit="-30deg 78deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="20deg"
+        exposure="1.20" shadow-intensity="1.0" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>ToyCar <span class="rank">★ 经典</span></h3>
+      <div class="meta"><span>5.8 MB</span><span>glTF-Sample-Models</span><span>PBR + clearcoat + transmission</span></div>
+      <div class="desc">红绒布上一辆精致玩具跑车。Khronos 旗舰参考资产，做主舞台稳妥。</div>
+      <div class="pick"><span class="chip rec">推荐登录 / 账单</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Buggy/glTF-Binary/Buggy.glb"
+        camera-orbit="20deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="20deg"
+        exposure="1.10" shadow-intensity="0.8" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>Buggy <span class="rank">越野车</span></h3>
+      <div class="meta"><span>7.9 MB</span><span>glTF-Sample-Models</span></div>
+      <div class="desc">沙地越野车，机械结构完整。适合"运动 EV"或越野车主用户的氛围。</div>
+      <div class="pick"><span class="chip">candidate · 1_charge</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/CesiumMilkTruck/glTF-Binary/CesiumMilkTruck.glb"
+        camera-orbit="0deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="20deg"
+        exposure="1.10" shadow-intensity="0.8" environment-image="neutral"
+        autoplay
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>CesiumMilkTruck <span class="rank">  自带动画</span></h3>
+      <div class="meta"><span>0.45 MB</span><span>有内置行驶动画</span></div>
+      <div class="desc">小货车，车轮和车身有内置动画。文件最小，加载最快，"运输/队列"语义自然。</div>
+      <div class="pick"><span class="chip rec">推荐排队页</span><span class="chip">candidate · 2_queue</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/VirtualCity/glTF-Binary/VirtualCity.glb"
+        camera-orbit="-30deg 65deg auto" field-of-view="35deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="15deg"
+        exposure="1.10" shadow-intensity="0.8" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>VirtualCity <span class="rank">城市场景</span></h3>
+      <div class="meta"><span>3 MB</span><span>含车辆的城市场景</span></div>
+      <div class="desc">迷你城市场景，含建筑+车辆。视觉信息量大，可做沙盘装饰。</div>
+      <div class="pick"><span class="chip">候选场景</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">机械 / 动力总成（POWERTRAIN）<span class="line"></span></div>
+<div class="grid">
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/GearboxAssy/glTF-Binary/GearboxAssy.glb"
+        camera-orbit="-20deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="22deg"
+        exposure="1.10" shadow-intensity="0.7" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>GearboxAssy <span class="rank">工业齿轮</span></h3>
+      <div class="meta"><span>5 MB</span><span>车辆变速箱总成</span></div>
+      <div class="desc">车辆变速箱（"能量传递"隐喻）。机械感强，适合 admin 控制台装饰。</div>
+      <div class="pick"><span class="chip">candidate · 4_piles / 6_report</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/2CylinderEngine/glTF-Binary/2CylinderEngine.glb"
+        camera-orbit="-30deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="22deg"
+        exposure="1.10" shadow-intensity="0.7" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>2CylinderEngine <span class="rank">动力引擎</span></h3>
+      <div class="meta"><span>1.8 MB</span><span>双缸引擎</span></div>
+      <div class="desc">机械引擎（虽然 EV 已不用内燃机，仍是"动力源"通用隐喻）。轻量，加载快。</div>
+      <div class="pick"><span class="chip">候选 admin</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">光 / 能量隐喻（LIGHT &amp; ENERGY）<span class="line"></span></div>
+<div class="grid">
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/Lantern/glTF-Binary/Lantern.glb"
+        camera-orbit="15deg 80deg auto" field-of-view="30deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="22deg"
+        exposure="1.10" shadow-intensity="0.6" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>Lantern <span class="rank">复古灯笼</span></h3>
+      <div class="meta"><span>~2 MB</span><span>暖色 PBR</span></div>
+      <div class="desc">复古吊灯。"灯=能量"隐喻，色调与莫兰迪天然融合。</div>
+      <div class="pick"><span class="chip">备选 admin</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/IridescenceLamp/glTF-Binary/IridescenceLamp.glb"
+        camera-orbit="0deg 78deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="22deg"
+        exposure="1.10" shadow-intensity="0.6" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>IridescenceLamp <span class="rank">炫彩台灯</span></h3>
+      <div class="meta"><span>4 MB</span><span>iridescence PBR</span></div>
+      <div class="desc">具有彩虹折光效果的现代台灯。视觉更现代，跟 EV 主题氛围接近。</div>
+      <div class="pick"><span class="chip">备选 admin</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/LightsPunctualLamp/glTF-Binary/LightsPunctualLamp.glb"
+        camera-orbit="0deg 78deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="20deg"
+        exposure="1.10" shadow-intensity="0.6" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>LightsPunctualLamp <span class="rank">点光台灯</span></h3>
+      <div class="meta"><span>4.3 MB</span><span>带光源点光源</span></div>
+      <div class="desc">现代风格台灯，自带光源演示，"点亮"感强。</div>
+      <div class="pick"><span class="chip">备选 admin</span></div>
+    </div>
+  </div>
+</div>
+
+<div class="section-title">材质细节 / 配件（DETAIL）<span class="line"></span></div>
+<div class="grid">
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/ClearCoatCarPaint/glTF-Binary/ClearCoatCarPaint.glb"
+        camera-orbit="-30deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="24deg"
+        exposure="1.20" shadow-intensity="0.5" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>ClearCoatCarPaint <span class="rank">车漆</span></h3>
+      <div class="meta"><span>0.12 MB</span><span>仅是材质演示</span></div>
+      <div class="desc">仅展示车漆 clearcoat 材质，球体几何。当装饰小元素用。</div>
+      <div class="pick"><span class="chip">小装饰</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/CarbonFibre/glTF-Binary/CarbonFibre.glb"
+        camera-orbit="-30deg 75deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="24deg"
+        exposure="1.10" shadow-intensity="0.5" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>CarbonFibre <span class="rank">碳纤维</span></h3>
+      <div class="meta"><span>0.43 MB</span><span>碳纤维材质</span></div>
+      <div class="desc">碳纤维材质展示。可用作背景装饰图案。</div>
+      <div class="pick"><span class="chip">小装饰</span></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="stage">
+      <model-viewer src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/SunglassesKhronos/glTF-Binary/SunglassesKhronos.glb"
+        camera-orbit="0deg 80deg auto" field-of-view="32deg"
+        auto-rotate auto-rotate-delay="0" rotation-per-second="24deg"
+        exposure="1.20" shadow-intensity="0.6" environment-image="neutral"
+        interaction-prompt="none" disable-zoom></model-viewer>
+    </div>
+    <div class="info">
+      <h3>SunglassesKhronos <span class="rank">驾驶墨镜</span></h3>
+      <div class="meta"><span>0.37 MB</span><span>透明镜片折射</span></div>
+      <div class="desc">驾驶配件墨镜。"夏天开车"语义，可做账单或个人页装饰。</div>
+      <div class="pick"><span class="chip">小装饰</span></div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

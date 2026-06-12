@@ -1,0 +1,156 @@
+﻿{
+    "now":  "2026-05-12T06:00:00",
+    "stationConfig":  {
+                          "waitingCapacity":  10,
+                          "pileSlotCapacity":  3,
+                          "fastPileCount":  3,
+                          "slowPileCount":  2,
+                          "fastPowerKw":  30,
+                          "slowPowerKw":  10,
+                          "parkingRate":  0.5,
+                          "parkingGracePeriodMinutes":  5
+                      },
+    "stationState":  "RUNNING",
+    "waitingFast":  [
+
+                    ],
+    "waitingSlow":  [
+                        "V6"
+                    ],
+    "piles":  [
+                  {
+                      "id":  "F1",
+                      "mode":  "FAST",
+                      "powerKw":  30,
+                      "status":  "WORKING",
+                      "currentVehicle":  null,
+                      "queuedVehicles":  [
+
+                                         ]
+                  },
+                  {
+                      "id":  "F2",
+                      "mode":  "FAST",
+                      "powerKw":  30,
+                      "status":  "WORKING",
+                      "currentVehicle":  null,
+                      "queuedVehicles":  [
+
+                                         ]
+                  },
+                  {
+                      "id":  "F3",
+                      "mode":  "FAST",
+                      "powerKw":  30,
+                      "status":  "WORKING",
+                      "currentVehicle":  null,
+                      "queuedVehicles":  [
+
+                                         ]
+                  },
+                  {
+                      "id":  "T1",
+                      "mode":  "SLOW",
+                      "powerKw":  10,
+                      "status":  "FAULT",
+                      "currentVehicle":  null,
+                      "queuedVehicles":  [
+
+                                         ]
+                  },
+                  {
+                      "id":  "T2",
+                      "mode":  "SLOW",
+                      "powerKw":  10,
+                      "status":  "WORKING",
+                      "currentVehicle":  "V2",
+                      "queuedVehicles":  [
+                                             "V4",
+                                             "V3"
+                                         ]
+                  }
+              ],
+    "requests":  [
+                     {
+                         "id":  "9722008b-8eac-4564-8281-0363b4b7ab02",
+                         "vehicleId":  "V1",
+                         "mode":  "SLOW",
+                         "requestedKwh":  100,
+                         "queueNo":  "T1",
+                         "status":  "INTERRUPTED",
+                         "pileId":  "T1",
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  "2026-05-12T06:00:00",
+                         "stoppedAt":  "2026-05-12T06:00:00",
+                         "chargedKwh":  0
+                     },
+                     {
+                         "id":  "2271c717-dc12-40ed-8981-cbf48837254d",
+                         "vehicleId":  "V2",
+                         "mode":  "SLOW",
+                         "requestedKwh":  100,
+                         "queueNo":  "T2",
+                         "status":  "CHARGING",
+                         "pileId":  "T2",
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  "2026-05-12T06:00:00",
+                         "stoppedAt":  null,
+                         "chargedKwh":  0
+                     },
+                     {
+                         "id":  "4148c219-203e-4609-a7ae-7e40ef6ec700",
+                         "vehicleId":  "V3",
+                         "mode":  "SLOW",
+                         "requestedKwh":  10,
+                         "queueNo":  "T3",
+                         "status":  "PILE_QUEUE",
+                         "pileId":  "T2",
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  null,
+                         "stoppedAt":  null,
+                         "chargedKwh":  0
+                     },
+                     {
+                         "id":  "4891c85e-f9f2-4a53-b161-489edd5ebf58",
+                         "vehicleId":  "V4",
+                         "mode":  "SLOW",
+                         "requestedKwh":  10,
+                         "queueNo":  "T4",
+                         "status":  "PILE_QUEUE",
+                         "pileId":  "T2",
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  null,
+                         "stoppedAt":  null,
+                         "chargedKwh":  0
+                     },
+                     {
+                         "id":  "8beac74e-c60e-4f6a-bf8a-e55de90c77f3",
+                         "vehicleId":  "V5",
+                         "mode":  "SLOW",
+                         "requestedKwh":  10,
+                         "queueNo":  "T5",
+                         "status":  "REDISPATCHING",
+                         "pileId":  null,
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  null,
+                         "stoppedAt":  null,
+                         "chargedKwh":  0
+                     },
+                     {
+                         "id":  "3e5aaee6-8e57-4c12-9fb0-f351eae90658",
+                         "vehicleId":  "V6",
+                         "mode":  "SLOW",
+                         "requestedKwh":  10,
+                         "queueNo":  "T6",
+                         "status":  "WAITING_AREA",
+                         "pileId":  null,
+                         "createdAt":  "2026-05-12T06:00:00",
+                         "startedAt":  null,
+                         "stoppedAt":  null,
+                         "chargedKwh":  0
+                     }
+                 ],
+    "details":  [
+
+                ]
+}

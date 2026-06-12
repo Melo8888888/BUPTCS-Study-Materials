@@ -1,0 +1,562 @@
+{
+  "base_url": "http://localhost:8080",
+  "xlsx": "docs\\作业验收预期表_策略B_时间顺序.xlsx",
+  "elapsed_seconds": 8.67,
+  "table_mismatches": [],
+  "detail_mismatches": [],
+  "checks": [
+    {
+      "name": "每桩不超过 M=3 after 06:00",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:05",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:10",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:20",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:25",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:30",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:40",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 06:50",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:00",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:10",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:15",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:20",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:25",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:30",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:35",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 07:40",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 08:00",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 08:20",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 08:30",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 08:35",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:00",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:10",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:20",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:30",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:35",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 09:50",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:00",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:05",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:10",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:20",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:30",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "每桩不超过 M=3 after 10:50",
+      "ok": true,
+      "actual": [],
+      "expected": "no pile over capacity"
+    },
+    {
+      "name": "10:30 T1 故障",
+      "ok": true,
+      "actual": "FAULT",
+      "expected": "FAULT"
+    },
+    {
+      "name": "10:30 T2 桩内为 V12 + V6/V10",
+      "ok": true,
+      "actual": [
+        "V12",
+        [
+          "V6",
+          "V10"
+        ]
+      ],
+      "expected": [
+        "V12",
+        [
+          "V6",
+          "V10"
+        ]
+      ]
+    },
+    {
+      "name": "10:30 故障重调度队列为 V13/V16/V17",
+      "ok": true,
+      "actual": [
+        "V13",
+        "V16",
+        "V17"
+      ],
+      "expected": [
+        "V13",
+        "V16",
+        "V17"
+      ]
+    },
+    {
+      "name": "10:50 F1 故障",
+      "ok": true,
+      "actual": "FAULT",
+      "expected": "FAULT"
+    },
+    {
+      "name": "10:50 F2/F3 为 V15/V19",
+      "ok": true,
+      "actual": [
+        "V15",
+        "V19"
+      ],
+      "expected": [
+        "V15",
+        "V19"
+      ]
+    },
+    {
+      "name": "10:50 慢充故障重调度仍为 V13/V16/V17",
+      "ok": true,
+      "actual": [
+        "V13",
+        "V16",
+        "V17"
+      ],
+      "expected": [
+        "V13",
+        "V16",
+        "V17"
+      ]
+    },
+    {
+      "name": "V21 10:10 变更生成 10 度详单",
+      "ok": true,
+      "actual": [
+        [
+          "F1",
+          "09:50",
+          "10:10",
+          "10"
+        ]
+      ],
+      "expected": [
+        [
+          "F1",
+          "09:50",
+          "10:10",
+          "10"
+        ]
+      ]
+    },
+    {
+      "name": "V13 最终到 T1 12:30-13:15",
+      "ok": true,
+      "actual": [
+        [
+          "T1",
+          "12:30",
+          "13:15"
+        ]
+      ],
+      "expected": [
+        [
+          "T1",
+          "12:30",
+          "13:15"
+        ]
+      ]
+    },
+    {
+      "name": "推进 300 分钟后没有未完成车辆",
+      "ok": true,
+      "actual": [],
+      "expected": []
+    },
+    {
+      "name": "不传 strategy 时也默认策略B",
+      "ok": true,
+      "actual": [
+        "V13",
+        "V16",
+        "V17"
+      ],
+      "expected": [
+        "V13",
+        "V16",
+        "V17"
+      ]
+    }
+  ],
+  "actual_details": [
+    [
+      "V2",
+      "T2",
+      "06:05",
+      "06:20",
+      "2.5",
+      "1",
+      "2",
+      "3",
+      "CANCELLED"
+    ],
+    [
+      "V3",
+      "F1",
+      "06:10",
+      "08:10",
+      "60",
+      "34.5",
+      "48",
+      "82.5",
+      "COMPLETED"
+    ],
+    [
+      "V9",
+      "F3",
+      "07:10",
+      "08:10",
+      "30",
+      "21",
+      "24",
+      "45",
+      "COMPLETED"
+    ],
+    [
+      "V4",
+      "T2",
+      "06:25",
+      "08:25",
+      "20",
+      "12.25",
+      "16",
+      "28.25",
+      "COMPLETED"
+    ],
+    [
+      "V11",
+      "F1",
+      "08:10",
+      "09:20",
+      "35",
+      "24.5",
+      "28",
+      "52.5",
+      "CANCELLED"
+    ],
+    [
+      "V20",
+      "F1",
+      "09:20",
+      "09:35",
+      "7.5",
+      "5.25",
+      "6",
+      "11.25",
+      "CANCELLED"
+    ],
+    [
+      "V8",
+      "F2",
+      "07:00",
+      "10:00",
+      "90",
+      "63",
+      "72",
+      "135",
+      "COMPLETED"
+    ],
+    [
+      "V1",
+      "T1",
+      "06:00",
+      "10:00",
+      "40",
+      "25",
+      "32",
+      "57",
+      "COMPLETED"
+    ],
+    [
+      "V21",
+      "F1",
+      "09:50",
+      "10:10",
+      "10",
+      "8.5",
+      "8",
+      "16.5",
+      "COMPLETED"
+    ],
+    [
+      "V5",
+      "T2",
+      "08:25",
+      "10:25",
+      "20",
+      "15.25",
+      "16",
+      "31.25",
+      "COMPLETED"
+    ],
+    [
+      "V6",
+      "T1",
+      "10:00",
+      "10:30",
+      "5",
+      "5",
+      "4",
+      "9",
+      "INTERRUPTED"
+    ],
+    [
+      "V22",
+      "F1",
+      "10:20",
+      "10:40",
+      "10",
+      "10",
+      "8",
+      "18",
+      "COMPLETED"
+    ],
+    [
+      "V14",
+      "F3",
+      "08:10",
+      "10:40",
+      "75",
+      "58.5",
+      "60",
+      "118.5",
+      "COMPLETED"
+    ],
+    [
+      "V12",
+      "T2",
+      "10:25",
+      "11:25",
+      "10",
+      "10",
+      "8",
+      "18",
+      "COMPLETED"
+    ],
+    [
+      "V15",
+      "F2",
+      "10:00",
+      "11:30",
+      "45",
+      "45",
+      "36",
+      "81",
+      "COMPLETED"
+    ],
+    [
+      "V19",
+      "F3",
+      "10:40",
+      "11:30",
+      "25",
+      "25",
+      "20",
+      "45",
+      "COMPLETED"
+    ],
+    [
+      "V10",
+      "T1",
+      "11:30",
+      "12:30",
+      "10",
+      "10",
+      "8",
+      "18",
+      "COMPLETED"
+    ],
+    [
+      "V6",
+      "T2",
+      "11:25",
+      "12:55",
+      "15",
+      "15",
+      "12",
+      "27",
+      "COMPLETED"
+    ],
+    [
+      "V13",
+      "T1",
+      "12:30",
+      "13:15",
+      "7.5",
+      "7.5",
+      "6",
+      "13.5",
+      "COMPLETED"
+    ],
+    [
+      "V16",
+      "T2",
+      "12:55",
+      "13:25",
+      "5",
+      "5",
+      "4",
+      "9",
+      "COMPLETED"
+    ],
+    [
+      "V17",
+      "T1",
+      "13:15",
+      "14:45",
+      "15",
+      "15",
+      "12",
+      "27",
+      "COMPLETED"
+    ]
+  ]
+}

@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>我的账单与详单 - 智能充电桩调度计费系统</title>
+<link rel="stylesheet" href="common.css">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+.bills-hero {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 18px;
+    margin-bottom: 18px;
+    padding: 16px 22px;
+    align-items: stretch;
+}
+.bills-hero h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -0.022em; }
+.bills-hero .sub { color: var(--muted); font-size: 13px; line-height: 1.55; }
+.bills-hero .stage {
+    height: 180px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    background: radial-gradient(ellipse at center 75%, rgba(135,167,179,0.18) 0%, transparent 65%);
+}
+.bills-hero .stage model-viewer { width: 100%; height: 100%; background: transparent; --poster-color: transparent; }
+.bills-hero .credit { margin-top: 8px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--subtle); }
+.bills-hero .credit b { color: var(--celadon-deep); font-weight: 600; }
+@media (max-width: 880px) { .bills-hero { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统</div>
+    <div class="menu">
+        <a href="1_charge_request.html">充电申请</a>
+        <a href="2_queue_status.html">队列与充电</a>
+        <a href="#" class="active">我的账单</a>
+    </div>
+    <div class="user"><div class="avatar">车</div><span id="navVehicle">车辆端</span></div>
+</nav>
+
+<main class="container">
+    <h1 class="page-title">我的账单与详单</h1>
+
+    <section class="bills-hero card">
+        <div>
+            <h2>本月行驶 · 充电消费</h2>
+            <div class="sub">所有充电详单与账单都按 PDF 计费规则（峰平谷 + 服务费 0.8/度）实时计算。点击右下方"支付"按钮可结算未支付账单。</div>
+            <div class="credit">KhronosGroup <b>CarConcept</b> · 前视图</div>
+        </div>
+        <div class="stage">
+            <model-viewer
+                src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Assets@main/Models/CarConcept/glTF-Binary/CarConcept.glb"
+                alt="你的车"
+                camera-orbit="0deg 78deg auto"
+                field-of-view="32deg"
+                auto-rotate auto-rotate-delay="0" rotation-per-second="14deg"
+                exposure="1.10"
+                shadow-intensity="0.9"
+                environment-image="neutral"
+                interaction-prompt="none"
+                disable-zoom>
+            </model-viewer>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-title">
+            <span>账单查询</span>
+            <span class="tag tag-info">详单字段来自 PDF 计费规则</span>
+        </div>
+        <div class="form-row">
+            <label for="vehicleId">车辆编号</label>
+            <div class="form-ctl btn-group">
+                <input id="vehicleId" class="input" style="max-width:260px;" value="V100">
+                <button class="btn btn-primary" id="loadBtn">查询账单</button>
+                <button class="btn btn-warning" id="payBtn">支付未支付账单</button>
+            </div>
+        </div>
+        <div id="message" class="tag tag-info" style="display:none;"></div>
+    </section>
+
+    <div class="info-grid">
+        <div class="info-card"><div class="label">累计充电</div><div class="value" id="totalKwh">0<span class="unit">度</span></div></div>
+        <div class="info-card"><div class="label">累计费用</div><div class="value" id="totalFee">0.00<span class="unit">元</span></div></div>
+        <div class="info-card"><div class="label">详单数量</div><div class="value" id="billCount">0<span class="unit">条</span></div></div>
+        <div class="info-card"><div class="label">待支付</div><div class="value" id="unpaidFee" style="color:#c92a2a;">0.00<span class="unit">元</span></div></div>
+    </div>
+
+    <section class="card">
+        <div class="card-title"><span>账单列表</span></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>详单编号</th><th>充电桩</th><th>充电电量</th><th>充电时长</th><th>启动时间</th><th>停止时间</th><th>总费用</th><th>状态</th>
+                </tr>
+            </thead>
+            <tbody id="billRows"></tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>费用拆分</span></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>详单编号</th><th>充电费</th><th>服务费</th><th>总费用</th><th>峰平谷分段</th>
+                </tr>
+            </thead>
+            <tbody id="detailRows"></tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <div class="card-title">
+            <span>超时停车费</span>
+            <span class="tag tag-info">充电结束 + 宽限期后开始计费</span>
+        </div>
+        <div id="parkingMsg" class="tag tag-info" style="display:none;"></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>对应详单</th><th>充电桩</th><th>超时分钟</th><th>单价</th><th>金额</th><th>生成时间</th><th>状态</th><th>操作</th>
+                </tr>
+            </thead>
+            <tbody id="parkingRows"><tr><td colspan="8" class="muted">尚无停车费记录</td></tr></tbody>
+        </table>
+    </section>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect()) { throw new Error("auth required"); }
+const API_BASE = EVAuth.apiBase();
+const $ = (id) => document.getElementById(id);
+
+function savedVehicle() {
+    return EVAuth.currentAuth().vehicleId || "V100";
+}
+
+function setMessage(text, kind = "info") {
+    const box = $("message");
+    box.style.display = "inline-flex";
+    box.className = `tag tag-${kind}`;
+    box.textContent = text;
+}
+
+function money(value) {
+    return Number(value || 0).toFixed(2);
+}
+
+function time(value) {
+    return String(value || "-").replace("T", " ").slice(0, 16);
+}
+
+async function loadBills() {
+    const vehicleId = $("vehicleId").value.trim();
+    localStorage.setItem("ev.vehicleId", vehicleId);
+    $("navVehicle").textContent = `车辆 ${vehicleId}`;
+    try {
+        const bills = await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/bills`);
+        renderBills(bills || []);
+        setMessage(`已查询到 ${bills.length} 条详单。`, "success");
+    } catch (error) {
+        setMessage(error.message, "danger");
+    }
+    await loadParkingFees();
+}
+
+function setParkingMsg(text, kind = "info") {
+    const box = $("parkingMsg");
+    if (!text) { box.style.display = "none"; return; }
+    box.style.display = "inline-flex";
+    box.className = `tag tag-${kind}`;
+    box.textContent = text;
+}
+
+async function loadParkingFees() {
+    const vehicleId = $("vehicleId").value.trim();
+    try {
+        const fees = await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/parking-fees`);
+        renderParkingFees(fees || []);
+    } catch (error) {
+        setParkingMsg(error.message, "danger");
+    }
+}
+
+function renderParkingFees(fees) {
+    if (!fees.length) {
+        $("parkingRows").innerHTML = `<tr><td colspan="8" class="muted">尚无停车费记录</td></tr>`;
+        return;
+    }
+    $("parkingRows").innerHTML = fees.map(f => `
+        <tr>
+            <td>${f.billDetailNo}</td>
+            <td>${f.pileId || "-"}</td>
+            <td>${f.overTimeMinutes} 分钟</td>
+            <td>${Number(f.ratePerMinute || 0).toFixed(2)} 元/分</td>
+            <td><strong>${money(f.amount)} 元</strong></td>
+            <td>${time(f.generatedAt)}</td>
+            <td><span class="tag ${f.paid ? "tag-success" : "tag-warning"}">${f.paid ? "已支付" : "待支付"}</span></td>
+            <td>${f.paid ? "-" : `<button class="btn btn-primary" data-fee-id="${f.id}">支付停车费</button>`}</td>
+        </tr>
+    `).join("");
+    $("parkingRows").querySelectorAll("button[data-fee-id]").forEach(btn => {
+        btn.addEventListener("click", async () => {
+            const vehicleId = $("vehicleId").value.trim();
+            try {
+                btn.disabled = true;
+                await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/parking-fee/pay/${encodeURIComponent(btn.dataset.feeId)}`, { method: "POST" });
+                setParkingMsg("停车费已支付。", "success");
+                await loadParkingFees();
+            } catch (e) {
+                setParkingMsg(e.message, "danger");
+            }
+        });
+    });
+}
+
+function renderBills(bills) {
+    const totalKwh = bills.reduce((sum, bill) => sum + Number(bill.chargedKwh || 0), 0);
+    const totalFee = bills.reduce((sum, bill) => sum + Number(bill.totalFee || 0), 0);
+    const unpaid = bills.filter((bill) => !bill.paid).reduce((sum, bill) => sum + Number(bill.totalFee || 0), 0);
+    $("totalKwh").innerHTML = `${totalKwh.toFixed(2)}<span class="unit">度</span>`;
+    $("totalFee").innerHTML = `${money(totalFee)}<span class="unit">元</span>`;
+    $("billCount").innerHTML = `${bills.length}<span class="unit">条</span>`;
+    $("unpaidFee").innerHTML = `${money(unpaid)}<span class="unit">元</span>`;
+
+    $("billRows").innerHTML = bills.length ? bills.map((bill) => `
+        <tr>
+            <td>${bill.detailNo}</td>
+            <td>${bill.pileId}</td>
+            <td>${Number(bill.chargedKwh || 0).toFixed(2)} 度</td>
+            <td>${bill.durationMinutes} 分钟</td>
+            <td>${time(bill.startedAt)}</td>
+            <td>${time(bill.stoppedAt)}</td>
+            <td><strong>${money(bill.totalFee)} 元</strong></td>
+            <td><span class="tag ${bill.paid ? "tag-success" : "tag-warning"}">${bill.paid ? "已支付" : "待支付"}</span></td>
+        </tr>
+    `).join("") : `<tr><td colspan="8">暂无账单，完成或中断一次充电后会生成详单。</td></tr>`;
+
+    $("detailRows").innerHTML = bills.length ? bills.map((bill) => `
+        <tr>
+            <td>${bill.detailNo}</td>
+            <td>${money(bill.chargeFee)} 元</td>
+            <td>${money(bill.serviceFee)} 元</td>
+            <td><strong>${money(bill.totalFee)} 元</strong></td>
+            <td>${bill.priceBreakdown || "-"}</td>
+        </tr>
+    `).join("") : `<tr><td colspan="5">暂无费用拆分。</td></tr>`;
+}
+
+async function payBills() {
+    const vehicleId = $("vehicleId").value.trim();
+    try {
+        const result = await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/bills/pay`, { method: "POST" });
+        setMessage(`支付成功：${result.paidBillCount} 条账单，共 ${money(result.paidAmount)} 元。`, "success");
+        renderBills(result.bills || []);
+    } catch (error) {
+        setMessage(error.message, "danger");
+    }
+}
+
+$("vehicleId").value = savedVehicle();
+$("navVehicle").textContent = `车辆 ${$("vehicleId").value}`;
+$("loadBtn").addEventListener("click", loadBills);
+$("payBtn").addEventListener("click", payBills);
+loadBills();
+</script>
+</body>
+</html>

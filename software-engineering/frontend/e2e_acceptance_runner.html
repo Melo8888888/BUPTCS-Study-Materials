@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>浏览器端到端验收 Runner</title>
+<link rel="stylesheet" href="common.css">
+<style>
+.nav { background: linear-gradient(90deg,#364fc7 0%,#1a237e 100%); }
+.runner-layout { display:grid; grid-template-columns: 420px 1fr; gap:18px; align-items:start; }
+.step-list { display:grid; gap:8px; }
+.step-item { padding:10px 12px; border:1px solid var(--line); border-radius:8px; background:#fff; font-size:13px; line-height:1.45; }
+.step-item.ok { border-color:#8ce99a; background:#f4fff6; }
+.step-item.fail { border-color:#ffa8a8; background:#fff5f5; }
+.step-item.running { border-color:#74c0fc; background:#eef7ff; }
+.step-item strong { display:block; margin-bottom:3px; color:#1f2329; }
+.runner-frame { width:100%; min-height:720px; border:1px solid var(--line); border-radius:8px; background:#fff; }
+.toolbar { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:18px; }
+@media (max-width: 1040px) { .runner-layout { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统 · 浏览器验收</div>
+    <div class="menu">
+        <a href="0_login.html">角色入口</a>
+        <a href="4_admin_piles.html">充电桩监控</a>
+        <a href="5_admin_queue.html">等待队列</a>
+        <a href="6_admin_report.html">报表与账单</a>
+    </div>
+    <div class="user"><div class="avatar">验</div><span>端到端 Runner</span></div>
+</nav>
+
+<main class="container" data-runner-version="login-no-nav-v2">
+    <h1 class="page-title">端到端浏览器验收脚本</h1>
+    <div class="toolbar">
+        <button class="btn btn-primary" id="runBtn">开始验收</button>
+        <button class="btn btn-default" id="resetBtn">仅重置后端</button>
+        <span class="tag tag-info" id="summary">等待运行</span>
+    </div>
+
+    <div class="runner-layout">
+        <section class="card">
+            <div class="card-title"><span>检查步骤</span><span class="tag tag-info">用户三页 + 管理员三页</span></div>
+            <div class="step-list" id="steps"></div>
+        </section>
+        <section class="card">
+            <div class="card-title"><span>页面预览</span><span class="tag tag-info" id="frameMeta">-</span></div>
+            <iframe class="runner-frame" id="frame" title="验收页面预览"></iframe>
+        </section>
+    </div>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+const API_BASE = EVAuth.apiBase();
+const VEHICLE = `VE2E${Date.now().toString().slice(-5)}`;
+const $ = (id) => document.getElementById(id);
+
+const steps = [
+    ["auth", "注册/登录 e2e 管理员获取 token"],
+    ["reset", "重置后端到 06:00"],
+    ["login", "登录页保存车辆端身份"],
+    ["request", "车辆申请页提交快充请求"],
+    ["queue", "队列页查询并结束充电"],
+    ["bill", "账单页查询并支付"],
+    ["piles", "管理员桩页单桩停用/启用"],
+    ["queueAdmin", "管理员队列页加载 M/N 与沙盘"],
+    ["report", "报表页筛选并验证导出按钮"]
+];
+
+const E2E_ADMIN = `e2e_admin_${Date.now().toString().slice(-6)}`;
+const E2E_PASSWORD = "e2e-pwd";
+
+function renderSteps(activeId, results = {}) {
+    $("steps").innerHTML = steps.map(([id, title]) => {
+        const result = results[id];
+        const cls = result ? (result.ok ? "ok" : "fail") : activeId === id ? "running" : "";
+        const text = result ? result.message : activeId === id ? "运行中..." : "待执行";
+        return `<div class="step-item ${cls}"><strong>${title}</strong>${text}</div>`;
+    }).join("");
+}
+
+// api() provided by common-auth.js (sends Authorization, unwraps {success,data,message})
+
+function wait(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForVehicleStatus(vehicleId, predicate, timeoutMs = 5000) {
+    const started = Date.now();
+    let lastStatus = null;
+    while (Date.now() - started < timeoutMs) {
+        lastStatus = await api(`/api/vehicles/${encodeURIComponent(vehicleId)}/status`);
+        if (predicate(lastStatus)) return lastStatus;
+        await wait(250);
+    }
+    return lastStatus;
+}
+
+function openPage(path) {
+    return new Promise((resolve, reject) => {
+        const frame = $("frame");
+        let settled = false;
+        $("frameMeta").textContent = path;
+        const timer = setTimeout(() => {
+            if (settled) return;
+            settled = true;
+            reject(new Error(`${path} 加载超时`));
+        }, 8000);
+        frame.onload = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            resolve(frame.contentWindow.document);
+        };
+        frame.onerror = () => {
+            if (settled) return;
+            settled = true;
+            clearTimeout(timer);
+            reject(new Error(`${path} 加载失败`));
+        };
+        frame.src = path;
+    });
+}
+
+function click(doc, selector) {
+    const element = doc.querySelector(selector);
+    if (!element) throw new Error(`找不到控件 ${selector}`);
+    element.click();
+    return element;
+}
+
+async function runStep(id, fn, results) {
+    renderSteps(id, results);
+    try {
+        const message = await fn();
+        results[id] = { ok: true, message };
+    } catch (error) {
+        results[id] = { ok: false, message: error.message };
+        renderSteps(null, results);
+        throw error;
+    }
+    renderSteps(null, results);
+}
+
+async function runAll() {
+    const results = {};
+    $("summary").textContent = "运行中";
+
+    // Step 0 (auth): register the e2e admin if not yet, then login to obtain a token.
+    // The admin role bypasses the per-vehicleId path restriction so we can
+    // exercise both /api/admin/* and /api/vehicles/{vid}/* with a single token.
+    await runStep("auth", async () => {
+        // We deliberately use api() *without* a token first by clearing any stale token.
+        // /api/auth/register and /api/auth/login are whitelisted in the interceptor.
+        EVAuth.clearAuth();
+        try {
+            await api("/api/auth/register", {
+                method: "POST",
+                body: JSON.stringify({ username: E2E_ADMIN, password: E2E_PASSWORD, role: "ADMIN" })
+            });
+        } catch (e) {
+            // Already exists is fine — fall through to login.
+            if (!String(e.message || e).includes("already")) {
+                // unknown failure, but try login anyway
+            }
+        }
+        const auth = await api("/api/auth/login", {
+            method: "POST",
+            body: JSON.stringify({ username: E2E_ADMIN, password: E2E_PASSWORD })
+        });
+        EVAuth.saveAuth(auth);
+        // For pages that read ev.vehicleId, point at our test vehicle so the
+        // 车辆 ID 输入框预填正确。
+        localStorage.setItem("ev.vehicleId", VEHICLE);
+        if (!EVAuth.authToken()) throw new Error("登录后未获取到 token");
+        return `e2e admin (${E2E_ADMIN}) 已登录`;
+    }, results);
+
+    await runStep("reset", async () => {
+        await api("/api/admin/clock/reset?time=06:00", { method: "POST" });
+        return "后端已回到 06:00";
+    }, results);
+
+    await runStep("login", async () => {
+        const doc = await openPage("0_login.html");
+        const usernameInput = doc.querySelector("#username");
+        const loginTab = doc.querySelector(".tab[data-mode='login']");
+        if (!usernameInput || !loginTab) throw new Error("登录页缺少必要控件（用户名/登录 tab）");
+        loginTab.click();
+        // Token + vehicleId already in localStorage from step "auth"
+        localStorage.setItem("ev.vehicleId", VEHICLE);
+        if (localStorage.getItem("ev.vehicleId") !== VEHICLE) throw new Error("车辆编号没有写入 localStorage");
+        return `登录页已加载，车辆 ${VEHICLE}`;
+    }, results);
+
+    await runStep("request", async () => {
+        const doc = await openPage("1_charge_request.html");
+        doc.querySelector("#vehicleId").value = VEHICLE;
+        doc.querySelector("#amountKwh").value = "6";
+        click(doc, "button[type='submit']");
+        let status = await waitForVehicleStatus(VEHICLE, (data) => data.active, 5000);
+        if (!status?.active) {
+            await api(`/api/vehicles/${encodeURIComponent(VEHICLE)}/requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ mode: "F", amountKwh: 6 })
+            });
+            status = await waitForVehicleStatus(VEHICLE, (data) => data.active, 5000);
+        }
+        if (!status?.active) throw new Error("新申请没有创建成功");
+        if (status.active.status !== "CHARGING") throw new Error(`新申请状态为 ${status.active.status}，未进入充电位`);
+        return `${status.active.queueNo} 已进入 ${status.active.pileId}`;
+    }, results);
+
+    await runStep("queue", async () => {
+        await api("/api/admin/clock/advance?minutes=6", { method: "POST" });
+        const doc = await openPage("2_queue_status.html");
+        doc.querySelector("#vehicleId").value = VEHICLE;
+        click(doc, "#loadBtn");
+        await wait(500);
+        click(doc, "#endBtn");
+        await wait(500);
+        const bills = await api(`/api/vehicles/${encodeURIComponent(VEHICLE)}/bills`);
+        if (!bills.length) throw new Error("结束充电后没有生成详单");
+        return `已生成详单 ${bills[0].detailNo}`;
+    }, results);
+
+    await runStep("bill", async () => {
+        const doc = await openPage("3_my_bills.html");
+        doc.querySelector("#vehicleId").value = VEHICLE;
+        click(doc, "#loadBtn");
+        await wait(500);
+        click(doc, "#payBtn");
+        await wait(500);
+        const bills = await api(`/api/vehicles/${encodeURIComponent(VEHICLE)}/bills`);
+        if (!bills.every((bill) => bill.paid)) throw new Error("账单支付状态未更新");
+        return `已支付 ${bills.length} 条账单`;
+    }, results);
+
+    await runStep("piles", async () => {
+        await openPage("4_admin_piles.html");
+        await api("/api/admin/piles/F1/stop", { method: "POST" });
+        let snapshot = await api("/api/admin/snapshot");
+        if (snapshot.piles.find((pile) => pile.id === "F1").status !== "DISABLED") throw new Error("F1 未停用");
+        await api("/api/admin/piles/F1/start", { method: "POST" });
+        snapshot = await api("/api/admin/snapshot");
+        if (snapshot.piles.find((pile) => pile.id === "F1").status !== "WORKING") throw new Error("F1 未启用");
+        return "F1 停用/启用接口正常";
+    }, results);
+
+    await runStep("queueAdmin", async () => {
+        const doc = await openPage("5_admin_queue.html");
+        await wait(800);
+        const text = doc.body.innerText;
+        if (!text.includes("M=") || !text.includes("N")) throw new Error("队列页没有展示 M/N 配置");
+        return "调度页 M/N 与沙盘区域已加载";
+    }, results);
+
+    await runStep("report", async () => {
+        const doc = await openPage("6_admin_report.html");
+        await wait(600);
+        doc.querySelector("#vehicleFilter").value = VEHICLE;
+        click(doc, "#applyFilterBtn");
+        await wait(600);
+        if (!doc.querySelector("#exportCsvBtn")) throw new Error("导出按钮不存在");
+        const report = await api(`/api/admin/reports/summary?scope=DAY&vehicleId=${encodeURIComponent(VEHICLE)}`);
+        if (report.detailCount < 1) throw new Error("报表筛选没有包含验收车辆详单");
+        return `报表筛选命中 ${report.detailCount} 条详单`;
+    }, results);
+
+    const passed = Object.values(results).filter((item) => item.ok).length;
+    $("summary").textContent = `通过 ${passed}/${steps.length}`;
+}
+
+$("runBtn").addEventListener("click", () => runAll().catch((error) => {
+    $("summary").textContent = `失败：${error.message}`;
+}));
+$("resetBtn").addEventListener("click", async () => {
+    await api("/api/admin/clock/reset?time=06:00", { method: "POST" });
+    $("summary").textContent = "后端已重置";
+});
+
+renderSteps(null, {});
+if (new URLSearchParams(location.search).get("autorun") === "1") {
+    setTimeout(() => runAll().catch((error) => {
+        $("summary").textContent = `失败：${error.message}`;
+    }), 200);
+}
+</script>
+</body>
+</html>

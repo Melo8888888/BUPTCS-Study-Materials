@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>充电桩监控 - 管理控制台</title>
+<link rel="stylesheet" href="common.css">
+<style>
+/* 4_admin_piles 页特定样式 — 不再覆盖 .nav / .pile-card 基础样式（来自 common.css 的液态玻璃） */
+.pile-card { transition: transform .18s ease; }
+.pile-card:hover { transform: translateY(-2px); }
+.pile-card.disabled::after {
+    background: linear-gradient(135deg, rgba(255,235,200,0.85), rgba(194,160,106,0.30) 28%, rgba(194,160,106,0.06) 55%, rgba(194,160,106,0.20) 78%, rgba(255,235,200,0.65)) !important;
+}
+.event-log { display:grid; gap:8px; max-height:240px; overflow:auto; }
+.event-item strong { color: var(--celadon-deep); }
+
+/* "能量核心" 自建 three.js 充电桩 */
+.energy-core {
+    margin-bottom: 16px;
+    padding: 18px 20px;
+}
+.energy-core .core-head {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 10px;
+    font-size: 14px; font-weight: 700; letter-spacing: -0.015em; color: var(--text);
+}
+.energy-core .core-head .lab {
+    margin-left: auto; font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 10px; padding: 2px 8px; border-radius: 999px;
+    background: var(--celadon-soft); color: var(--celadon-deep);
+}
+.energy-core .core-stage {
+    height: 280px; border-radius: 14px; overflow: hidden;
+    background: radial-gradient(ellipse at center 75%, rgba(135,167,179,0.18) 0%, transparent 65%);
+    position: relative;
+}
+.energy-core canvas { display: block; width: 100% !important; height: 100% !important; }
+.energy-core .core-credit {
+    margin-top: 8px; font-size: 11px; color: var(--subtle);
+    font-family: "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.04em;
+}
+.energy-core .core-credit b { color: var(--celadon-deep); font-weight: 600; }
+
+/* 桩矩阵 + 能量核心 两列布局 */
+.piles-layout {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
+    align-items: start;
+    margin-bottom: 16px;
+}
+@media (max-width: 1100px) { .piles-layout { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统 · 管理控制台</div>
+    <div class="menu">
+        <a href="#" class="active">充电桩监控</a>
+        <a href="5_admin_queue.html">等待队列</a>
+        <a href="6_admin_report.html">报表与账单</a>
+        <a href="7_cinema_3d.html">院线 3D 视图 →</a>
+    </div>
+    <div class="user"><div class="avatar">管</div><span id="roleText">管理员</span></div>
+</nav>
+
+<main class="container">
+    <h1 class="page-title">充电桩实时监控</h1>
+
+    <div class="toolbar">
+        <span class="tag tag-info ws-state"><span class="ws-dot" id="wsDot"></span><span id="wsText">WebSocket 连接中</span></span>
+        <button class="btn btn-primary" id="refreshBtn">刷新</button>
+        <button class="btn btn-warning" id="stopAllBtn">全部停用</button>
+        <button class="btn btn-primary" id="startAllBtn">全部启用</button>
+        <button class="btn btn-default" id="runAcceptanceBtn">载入验收用例</button>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card"><div class="label">正常工作</div><div class="value" id="workingCount" style="color:var(--green-text);">-<span class="unit">个</span></div></div>
+        <div class="info-card"><div class="label">已停用</div><div class="value" id="disabledCount" style="color:var(--gold-text);">-<span class="unit">个</span></div></div>
+        <div class="info-card"><div class="label">故障</div><div class="value" id="faultCount" style="color:var(--rust-text);">-<span class="unit">个</span></div></div>
+        <div class="info-card"><div class="label">正在充电</div><div class="value" id="chargingCount">-<span class="unit">辆</span></div></div>
+    </div>
+
+    <div class="piles-layout">
+        <section class="card">
+            <div class="control-strip">
+                <div>
+                    <div class="card-title" style="margin:0 0 6px;padding:0;border:0;">充电桩状态一览</div>
+                    <div class="hint">停用桩不会接收新调度；当前正在充电的车辆继续完成。故障桩会中断当前车并按时间顺序重调度。</div>
+                </div>
+                <span class="tag tag-info" id="stationTime">-</span>
+            </div>
+            <div class="pile-grid" id="pileGrid"></div>
+        </section>
+
+        <section class="energy-core card">
+            <div class="core-head">  能量核心 <span class="lab">three.js · CC0</span></div>
+            <div class="core-stage" id="coreStage"></div>
+            <div class="core-credit">自建 EV 充电桩 3D · 立式机柜 + LED 屏 + 螺旋电缆 + 接头</div>
+        </section>
+    </div>
+
+    <section class="card">
+        <div class="card-title"><span>状态事件</span><span class="tag tag-info" id="eventCount">0 条</span></div>
+        <div class="event-log" id="eventLog"></div>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>故障处理记录</span></div>
+        <table class="table">
+            <thead>
+                <tr><th>充电桩</th><th>状态</th><th>当前车辆</th><th>桩内队列</th><th>处理建议</th></tr>
+            </thead>
+            <tbody id="faultRows"></tbody>
+        </table>
+    </section>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect("ADMIN")) { throw new Error("admin required"); }
+const API_BASE = EVAuth.apiBase();
+let snapshot = null;
+let report = null;
+const eventLog = [];
+const $ = (id) => document.getElementById(id);
+
+function money(value) { return Number(value || 0).toFixed(2); }
+function kwh(value) { return Number(value || 0).toFixed(2); }
+function minutes(value) {
+    const total = Number(value || 0);
+    const hours = Math.floor(total / 60);
+    const mins = total % 60;
+    return hours ? `${hours}小时${mins}分钟` : `${mins}分钟`;
+}
+function modeText(mode) { return mode === "FAST" ? "快充" : "慢充"; }
+function time(value) { return String(value || "-").replace("T", " ").slice(0, 16); }
+function statusText(status) {
+    if (status === "FAULT") return "故障";
+    if (status === "DISABLED") return "已停用";
+    return "工作中";
+}
+function statusTag(status) {
+    if (status === "FAULT") return "tag-danger";
+    if (status === "DISABLED") return "tag-warning";
+    return "tag-success";
+}
+
+async function loadAll() {
+    [snapshot, report] = await Promise.all([
+        api("/api/admin/snapshot"),
+        api("/api/admin/reports/summary")
+    ]);
+    render();
+}
+
+function render() {
+    const working = snapshot.piles.filter((pile) => pile.status === "WORKING").length;
+    const disabled = snapshot.piles.filter((pile) => pile.status === "DISABLED").length;
+    const faults = snapshot.piles.filter((pile) => pile.status === "FAULT").length;
+    $("workingCount").innerHTML = `${working}<span class="unit">个</span>`;
+    $("disabledCount").innerHTML = `${disabled}<span class="unit">个</span>`;
+    $("faultCount").innerHTML = `${faults}<span class="unit">个</span>`;
+    $("chargingCount").innerHTML = `${report.chargingCount}<span class="unit">辆</span>`;
+    $("stationTime").textContent = `系统时间 ${time(snapshot.now)}`;
+    $("roleText").textContent = localStorage.getItem("ev.role") === "vehicle" ? "车辆端预览" : "管理员";
+
+    const reportByPile = new Map((report.piles || []).map((pile) => [pile.pileId, pile]));
+    $("pileGrid").innerHTML = snapshot.piles.map((pile) => {
+        const item = reportByPile.get(pile.id) || {};
+        const queue = pile.queuedVehicles || [];
+        const cardClass = pile.status === "FAULT" ? "fault" : pile.status === "DISABLED" ? "disabled" : "";
+        return `<div class="pile-card ${cardClass}">
+            <div class="pile-header">
+                <div class="pile-name">${pile.id} · ${modeText(pile.mode)}</div>
+                <span class="tag ${statusTag(pile.status)}">${statusText(pile.status)}</span>
+            </div>
+            <div class="pile-stats">
+                <span class="stat-label">功率</span><span class="stat-value">${pile.powerKw} 度/小时</span>
+                <span class="stat-label">当前车辆</span><span class="stat-value">${pile.currentVehicle || "空闲"}</span>
+                <span class="stat-label">桩内队列</span><span class="stat-value">${queue.length ? queue.join("、") : "无"}</span>
+                <span class="stat-label">累计次数</span><span class="stat-value">${item.completedDetailCount || 0} 次</span>
+                <span class="stat-label">累计时长</span><span class="stat-value">${minutes(item.durationMinutes)}</span>
+                <span class="stat-label">累计电量</span><span class="stat-value">${kwh(item.chargedKwh)} 度</span>
+                <span class="stat-label">充电费/服务费</span><span class="stat-value">${money(item.chargeFee)} / ${money(item.serviceFee)} 元</span>
+                <span class="stat-label">累计费用</span><span class="stat-value">${money(item.totalFee)} 元</span>
+            </div>
+            <div class="pile-actions">
+                ${pile.status === "FAULT"
+                    ? `<button class="btn btn-primary" data-action="recover" data-pile="${pile.id}">故障恢复</button>`
+                    : `<button class="btn ${pile.status === "DISABLED" ? "btn-primary" : "btn-warning"}" data-action="${pile.status === "DISABLED" ? "start" : "stop"}" data-pile="${pile.id}">${pile.status === "DISABLED" ? "启用" : "停用"}</button>
+                       <select class="input" style="min-width:120px;padding:4px 6px;" data-strategy-for="${pile.id}" title="故障重调度策略">
+                           <option value="TIME_ORDER" selected>时间顺序（策略B）</option>
+                           <option value="PRIORITY">优先级（策略A）</option>
+                       </select>
+                       <button class="btn btn-danger" data-action="fault" data-pile="${pile.id}">上报故障</button>`}
+                <a class="btn btn-default" href="5_admin_queue.html" style="text-decoration:none;display:inline-flex;align-items:center;">查看调度</a>
+            </div>
+        </div>`;
+    }).join("");
+
+    const faultPiles = snapshot.piles.filter((pile) => pile.status === "FAULT");
+    $("faultRows").innerHTML = faultPiles.length ? faultPiles.map((pile) => `
+        <tr>
+            <td>${pile.id}</td>
+            <td><span class="tag tag-danger">故障中</span></td>
+            <td>${pile.currentVehicle || "无"}</td>
+            <td>${(pile.queuedVehicles || []).join("、") || "已清空并重调度"}</td>
+            <td>故障桩暂停叫号，桩内队列和中断车辆按时间顺序重调度。</td>
+        </tr>
+    `).join("") : `<tr><td colspan="5">当前没有故障桩。</td></tr>`;
+    renderEvents();
+}
+
+async function reloadReport() {
+    report = await api("/api/admin/reports/summary");
+    render();
+}
+
+async function updatePile(action, pileId) {
+    let path;
+    if (action === "fault") {
+        const select = document.querySelector(`select[data-strategy-for="${pileId}"]`);
+        const strategy = select ? select.value : "TIME_ORDER";
+        path = `/api/admin/piles/${encodeURIComponent(pileId)}/fault?minutes=60&strategy=${strategy}`;
+    } else {
+        const pathMap = {
+            recover: `/api/admin/piles/${encodeURIComponent(pileId)}/recover?strategy=TIME_ORDER`,
+            stop: `/api/admin/piles/${encodeURIComponent(pileId)}/stop`,
+            start: `/api/admin/piles/${encodeURIComponent(pileId)}/start`
+        };
+        path = pathMap[action];
+    }
+    snapshot = await api(path, { method: "POST" });
+    report = await api("/api/admin/reports/summary");
+    const strategySuffix = action === "fault"
+        ? `（${(document.querySelector(`select[data-strategy-for="${pileId}"]`)?.value === "TIME_ORDER" ? "时间顺序" : "优先级")}）`
+        : "";
+    pushEvent(action.toUpperCase(), `${pileId} ${actionLabel(action)}${strategySuffix}`);
+    render();
+}
+
+function actionLabel(action) {
+    return ({ recover: "故障恢复", fault: "上报故障", stop: "停用服务", start: "启用服务" })[action] || action;
+}
+
+function pushEvent(type, text) {
+    eventLog.unshift({ type, text, at: time(snapshot?.now) });
+    eventLog.splice(10);
+    renderEvents();
+}
+
+function renderEvents() {
+    $("eventCount").textContent = `${eventLog.length} 条`;
+    $("eventLog").innerHTML = eventLog.length ? eventLog.map((item) => `
+        <div class="event-item"><strong>${item.at}</strong> · ${item.type} · ${item.text}</div>
+    `).join("") : `<div class="event-item">等待真实启停、故障或 WebSocket 推送。</div>`;
+}
+
+function setWsState(text, color) {
+    $("wsText").textContent = text;
+    $("wsDot").style.background = color;
+    $("wsDot").style.boxShadow = `0 0 0 4px ${color}22`;
+}
+
+function connectWebSocket() {
+    if (!location.origin.startsWith("http")) return;
+    const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${protocol}//${location.host}/ws`);
+    socket.addEventListener("open", () => {
+        socket.send(`CONNECT\naccept-version:1.2\nhost:${location.host}\nheart-beat:10000,10000\n\n\u0000`);
+    });
+    socket.addEventListener("message", async (event) => {
+        String(event.data).split("\u0000").filter(Boolean).forEach(async (raw) => {
+            if (raw.startsWith("CONNECTED")) {
+                socket.send("SUBSCRIBE\nid:admin-piles\ndestination:/topic/station\n\n\u0000");
+                setWsState("WebSocket 已连接", "#2b8a3e");
+            }
+            if (raw.startsWith("MESSAGE")) {
+                const body = raw.slice(raw.indexOf("\n\n") + 2);
+                const message = JSON.parse(body);
+                snapshot = message.snapshot;
+                report = await api("/api/admin/reports/summary");
+                pushEvent(message.type || "STATE_CHANGED", "站内状态已同步刷新");
+                render();
+                setWsState(`最后推送 ${message.type || "STATE_CHANGED"}`, "#1c7ed6");
+            }
+        });
+    });
+    socket.addEventListener("close", () => {
+        setWsState("WebSocket 已断开，3 秒后重连", "#f59f00");
+        setTimeout(connectWebSocket, 3000);
+    });
+    socket.addEventListener("error", () => setWsState("WebSocket 暂不可用", "#c92a2a"));
+}
+
+$("refreshBtn").addEventListener("click", loadAll);
+$("stopAllBtn").addEventListener("click", async () => {
+    snapshot = await api("/api/admin/piles/stop-all", { method: "POST" });
+    await reloadReport();
+    pushEvent("PILES_DISABLED", "已停用全部非故障桩");
+});
+$("startAllBtn").addEventListener("click", async () => {
+    snapshot = await api("/api/admin/piles/start-all", { method: "POST" });
+    await reloadReport();
+    pushEvent("PILES_ENABLED", "全部充电桩已启用");
+});
+$("runAcceptanceBtn").addEventListener("click", async () => {
+    snapshot = await api("/api/acceptance/run-default?strategy=TIME_ORDER", { method: "POST" });
+    report = await api("/api/admin/reports/summary");
+    pushEvent("ACCEPTANCE", "已载入默认验收用例");
+    render();
+});
+$("pileGrid").addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    try {
+        await updatePile(button.dataset.action, button.dataset.pile);
+    } catch (error) {
+        setWsState(error.message, "#c92a2a");
+    }
+});
+
+loadAll().catch((error) => setWsState(error.message, "#c92a2a"));
+connectWebSocket();
+</script>
+
+<!--   能量核心：自建 three.js 充电桩 (CC0) -->
+<script type="module">
+import * as THREE from "https://unpkg.com/three@0.160.0/build/three.module.js";
+
+const stage = document.getElementById("coreStage");
+if (stage) {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setSize(w, h);
+    renderer.setClearColor(0x000000, 0);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    stage.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(32, w / h, 0.1, 50);
+    camera.position.set(2.6, 2.0, 3.4);
+    camera.lookAt(0, 1.4, 0);
+
+    // 主光 + 环境光
+    scene.add(new THREE.AmbientLight(0xfaf7f0, 0.9));
+    const key = new THREE.DirectionalLight(0xffffff, 1.0);
+    key.position.set(3, 5, 3);
+    key.castShadow = true;
+    key.shadow.mapSize.set(1024, 1024);
+    key.shadow.camera.near = 0.1;
+    key.shadow.camera.far = 12;
+    scene.add(key);
+    const fill = new THREE.PointLight(0xC7BCD0, 0.6, 8);
+    fill.position.set(-3, 2, -2);
+    scene.add(fill);
+
+    const root = new THREE.Group();
+    scene.add(root);
+
+    // 材质
+    const matBody = new THREE.MeshStandardMaterial({ color: 0x87A7B3, roughness: 0.35, metalness: 0.55 });
+    const matBodyDark = new THREE.MeshStandardMaterial({ color: 0x5E8290, roughness: 0.4, metalness: 0.6 });
+    const matScreen = new THREE.MeshStandardMaterial({
+        color: 0x111418, roughness: 0.2, metalness: 0.1,
+        emissive: 0x8AAE8A, emissiveIntensity: 0.55
+    });
+    const matCable = new THREE.MeshStandardMaterial({ color: 0x2E2E2E, roughness: 0.65, metalness: 0.1 });
+    const matConnector = new THREE.MeshStandardMaterial({ color: 0xC2A06A, roughness: 0.4, metalness: 0.7 });
+    const matLogo = new THREE.MeshStandardMaterial({ color: 0xFAF7F0, roughness: 0.25, metalness: 0.3, emissive: 0xFAF7F0, emissiveIntensity: 0.12 });
+    const matFloor = new THREE.MeshStandardMaterial({ color: 0xC9D2DA, roughness: 0.85, metalness: 0.05, transparent: true, opacity: 0.5 });
+
+    // 地面圆盘
+    const floor = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, 0.04, 48), matFloor);
+    floor.position.y = -0.02;
+    floor.receiveShadow = true;
+    root.add(floor);
+
+    // 立式机柜（主体）
+    const cabinet = new THREE.Mesh(new THREE.BoxGeometry(0.7, 2.4, 0.45), matBody);
+    cabinet.position.y = 1.2;
+    cabinet.castShadow = true;
+    cabinet.receiveShadow = true;
+    root.add(cabinet);
+
+    // 机柜底座
+    const base = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.12, 0.55), matBodyDark);
+    base.position.y = 0.06;
+    base.castShadow = true;
+    root.add(base);
+
+    // 顶部 LED 屏
+    const screen = new THREE.Mesh(new THREE.BoxGeometry(0.56, 0.32, 0.05), matScreen);
+    screen.position.set(0, 2.0, 0.23);
+    root.add(screen);
+    // 屏幕边框
+    const screenFrame = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.40, 0.06), matBodyDark);
+    screenFrame.position.set(0, 2.0, 0.22);
+    root.add(screenFrame);
+
+    // 顶部 logo 灯条
+    const logo = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.06, 0.05), matLogo);
+    logo.position.set(0, 2.34, 0.23);
+    root.add(logo);
+
+    // 侧面通风口
+    for (let i = 0; i < 5; i++) {
+        const vent = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.04, 0.025), matBodyDark);
+        vent.position.set(0, 0.6 + i * 0.18, 0.23);
+        root.add(vent);
+    }
+
+    // 电缆挂钩
+    const hookBase = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.16, 16), matBodyDark);
+    hookBase.position.set(0.35 + 0.08, 1.4, 0);
+    hookBase.rotation.z = Math.PI / 2;
+    root.add(hookBase);
+
+    // 螺旋电缆（沿样条管道）
+    const curve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0.45, 1.45, 0),
+        new THREE.Vector3(0.95, 1.30, 0.15),
+        new THREE.Vector3(1.35, 1.05, 0.35),
+        new THREE.Vector3(1.55, 0.75, 0.55),
+        new THREE.Vector3(1.45, 0.45, 0.80),
+        new THREE.Vector3(1.20, 0.25, 1.00),
+        new THREE.Vector3(0.95, 0.18, 1.10),
+    ]);
+    const cable = new THREE.Mesh(new THREE.TubeGeometry(curve, 64, 0.04, 12, false), matCable);
+    cable.castShadow = true;
+    root.add(cable);
+
+    // EV 充电接头（圆柱端 + 头）
+    const connectorBody = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.14, 24), matConnector);
+    connectorBody.position.set(0.95, 0.22, 1.18);
+    connectorBody.rotation.set(Math.PI / 3.5, Math.PI / 6, 0);
+    root.add(connectorBody);
+
+    const connectorHead = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.04, 24), matBodyDark);
+    connectorHead.position.set(0.99, 0.30, 1.24);
+    connectorHead.rotation.set(Math.PI / 3.5, Math.PI / 6, 0);
+    root.add(connectorHead);
+
+    // 接头两个针脚（CCS Type 2 风格）
+    const matPin = new THREE.MeshStandardMaterial({ color: 0xC2A06A, roughness: 0.3, metalness: 0.85 });
+    for (let i = -1; i <= 1; i += 2) {
+        const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.05, 8), matPin);
+        pin.position.set(0.99 + i * 0.025, 0.33, 1.27);
+        pin.rotation.set(Math.PI / 3.5, Math.PI / 6, 0);
+        root.add(pin);
+    }
+
+    // 微微下倾朝向观察
+    root.position.y = -0.2;
+
+    // 自转动画
+    let lastT = performance.now();
+    function animate(t) {
+        const dt = (t - lastT) / 1000;
+        lastT = t;
+        root.rotation.y += 0.32 * dt; // ~18°/s
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+
+    // 响应式
+    window.addEventListener("resize", () => {
+        const ww = stage.clientWidth, hh = stage.clientHeight;
+        if (ww > 0 && hh > 0) {
+            renderer.setSize(ww, hh);
+            camera.aspect = ww / hh;
+            camera.updateProjectionMatrix();
+        }
+    });
+}
+</script>
+</body>
+</html>

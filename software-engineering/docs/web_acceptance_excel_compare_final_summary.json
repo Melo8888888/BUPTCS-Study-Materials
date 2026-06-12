@@ -1,0 +1,12 @@
+{
+  "策略A_优先级": {
+    "table_mismatches": 0,
+    "detail_mismatches": 0,
+    "warnings": 0
+  },
+  "策略B_时间顺序": {
+    "table_mismatches": 0,
+    "detail_mismatches": 0,
+    "warnings": 0
+  }
+}

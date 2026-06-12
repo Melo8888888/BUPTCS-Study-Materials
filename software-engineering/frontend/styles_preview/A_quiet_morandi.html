@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 A · 静谧莫兰迪</title>
+<style>
+:root {
+  --bg: #FAF7F0;
+  --surface: #FFFFFF;
+  --line: rgba(199,184,161,0.55);
+  --text: #2E2E2E;
+  --muted: #9B8AA3;
+  --primary: #87A7B3;
+  --primary-dark: #6E8C99;
+  --misty: #A8B6C1;
+  --accent: #DDB892;
+  --highlight: #F5C842;
+  --ok-bg: #DDE7DA;  --ok-text: #5E7A5A;  --ok-dot: #B5C4B1;
+  --warn-bg: #F0D9D5; --warn-text: #8A4F47; --warn-dot: #D4A29C;
+  --peak-bg: #F2E4D0; --peak-text: #7A5A2E;
+  --shadow-card: 0 6px 20px rgba(155,138,163,0.08);
+  --radius: 12px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", Inter, sans-serif;
+  font-feature-settings: "tnum", "kern";
+  font-size: 14px;
+  line-height: 1.55;
+}
+.tag {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+  font-size: 12px; font-weight: 600; border-radius: 999px; letter-spacing: 0.02em;
+}
+.tag.ok { background: var(--ok-bg); color: var(--ok-text); }
+.tag.warn { background: var(--warn-bg); color: var(--warn-text); }
+.tag.info { background: rgba(168,182,193,0.22); color: #3E5566; }
+.dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.dot.ok { background: var(--ok-dot); box-shadow: 0 0 0 3px rgba(181,196,177,0.32); }
+.dot.warn { background: var(--warn-dot); box-shadow: 0 0 0 3px rgba(212,162,156,0.32); }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  min-height: 62px; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: linear-gradient(95deg, #A8B6C1 0%, #9B8AA3 100%);
+  color: rgba(255,255,255,0.95);
+}
+.logo { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; }
+.logo .icon {
+  width: 30px; height: 30px; border-radius: 50%; display: inline-flex;
+  align-items: center; justify-content: center; font-weight: 800;
+  background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.3);
+}
+.menu { display: flex; gap: 4px; flex: 1; margin-left: 36px; }
+.menu a {
+  padding: 22px 14px; color: rgba(255,255,255,0.86);
+  font-size: 14px; text-decoration: none; border-bottom: 2px solid transparent;
+}
+.menu a.active { color: #fff; border-bottom-color: var(--highlight); }
+.menu a:hover { color: #fff; }
+.user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: rgba(255,255,255,0.94); }
+.user .avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: rgba(255,255,255,0.22); display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #fff;
+}
+
+/* Layout */
+.container { max-width: 1280px; margin: 0 auto; padding: 28px 32px 60px; }
+.page-title {
+  margin: 0 0 6px; font-size: 26px; font-weight: 720; letter-spacing: -0.01em;
+}
+.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+
+/* KPI */
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 24px;
+}
+.kpi {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px; box-shadow: var(--shadow-card); position: relative; overflow: hidden;
+}
+.kpi::after {
+  content: ""; position: absolute; right: -20px; top: -20px;
+  width: 80px; height: 80px; border-radius: 50%; background: rgba(135,167,179,0.08);
+}
+.kpi .label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+.kpi .value { font-size: 30px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.kpi .value.accent { color: #B68A57; }
+.kpi .unit { margin-left: 6px; font-size: 13px; color: var(--muted); font-weight: 500; }
+
+/* Section */
+.section-title {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 18px; font-weight: 700; margin: 8px 0 14px;
+}
+.section-title::before {
+  content: ""; width: 3px; height: 18px; border-radius: 2px; background: var(--primary);
+}
+.section-title .extra { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 500; }
+
+/* Pile grid */
+.pile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 24px; }
+.pile-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px; box-shadow: var(--shadow-card); position: relative;
+}
+.pile-card .head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
+}
+.pile-card h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.pile-card .meta { display: grid; grid-template-columns: 78px 1fr; gap: 6px 12px; font-size: 13px; }
+.pile-card .meta dt { color: var(--muted); }
+.pile-card .meta dd { margin: 0; color: var(--text); font-weight: 600; }
+.pile-card .actions {
+  margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap;
+}
+.pile-card.fault {
+  background: linear-gradient(180deg, #FCEFEC 0%, var(--surface) 50%);
+}
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--text); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, border-color 0.15s;
+}
+.btn:hover { background: rgba(168,182,193,0.10); }
+.btn.primary { background: var(--primary); color: #fff; border-color: transparent; }
+.btn.primary:hover { background: var(--primary-dark); }
+.btn.warn { background: var(--warn-bg); color: var(--warn-text); border-color: transparent; }
+.btn.ghost { background: transparent; }
+
+/* Two-column for waiting + details */
+.two-col { display: grid; grid-template-columns: 380px 1fr; gap: 14px; margin-bottom: 24px; }
+
+/* Waiting area */
+.wait-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 18px 20px; box-shadow: var(--shadow-card);
+}
+.wait-card h3 { margin: 0 0 12px; font-size: 16px; font-weight: 700; }
+.wait-item {
+  display: flex; align-items: center; gap: 12px; padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.wait-item:last-child { border-bottom: none; }
+.wait-item .qno {
+  width: 44px; height: 44px; border-radius: 10px; background: rgba(135,167,179,0.12);
+  color: var(--primary-dark); font-weight: 700; display: flex; align-items: center; justify-content: center;
+  font-size: 13px;
+}
+.wait-item .vehicle { font-weight: 700; }
+.wait-item .desc { color: var(--muted); font-size: 12px; }
+.wait-foot { margin-top: 10px; font-size: 12px; color: var(--muted); text-align: right; }
+
+/* Detail table */
+.table-card {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 0; overflow: hidden; box-shadow: var(--shadow-card);
+}
+.table-card h3 {
+  margin: 0; padding: 16px 20px;
+  font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: space-between;
+}
+table.detail { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.detail th, table.detail td {
+  padding: 12px 16px; text-align: left;
+}
+table.detail th { background: rgba(168,182,193,0.10); color: var(--muted); font-weight: 600; font-size: 12px; }
+table.detail tbody tr { border-top: 1px solid var(--line); }
+table.detail tbody tr:hover { background: rgba(168,182,193,0.04); }
+table.detail td.num { text-align: right; font-variant-numeric: tabular-nums; }
+table.detail tr.complete td.status { color: var(--ok-text); }
+table.detail tr.interrupt td.status { color: var(--warn-text); }
+
+/* Footer note */
+.foot {
+  margin-top: 18px; padding: 14px 18px; font-size: 12px; color: var(--muted);
+  border: 1px dashed var(--line); border-radius: 10px; background: rgba(255,255,255,0.5);
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统</div>
+  <div class="menu">
+    <a href="#">充电桩监控</a>
+    <a href="#" class="active">等候队列</a>
+    <a href="#">报表管理</a>
+  </div>
+  <div class="user"><span class="avatar">管</span><span>管理员 · 徐工</span></div>
+</nav>
+
+<main class="container">
+  <h1 class="page-title">队列总览</h1>
+  <div class="page-sub">系统时间 2026-05-12 10:50 · WebSocket 已连接 · 32/32 个验收事件已完成</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">累计充电次数</div><div class="value">20<span class="unit">次</span></div></div>
+    <div class="kpi"><div class="label">累计电量</div><div class="value">522.50<span class="unit">度</span></div></div>
+    <div class="kpi"><div class="label">累计费用</div><div class="value accent">819.25<span class="unit">元</span></div></div>
+    <div class="kpi"><div class="label">故障桩</div><div class="value">2<span class="unit">个</span></div></div>
+  </div>
+
+  <!-- Pile cards -->
+  <div class="section-title">充电桩实时监控 <span class="extra">3 快充 / 2 慢充 · N=10 · M=3</span></div>
+  <div class="pile-grid">
+    <div class="pile-card fault">
+      <div class="head"><h3>F1 · 快充</h3><span class="tag warn"><span class="dot warn"></span>故障</span></div>
+      <dl class="meta"><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>122.50 度</dd></dl>
+      <div class="actions"><button class="btn">故障恢复</button><button class="btn ghost">查看调度</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>F2 · 快充</h3><span class="tag ok"><span class="dot ok"></span>工作中</span></div>
+      <dl class="meta"><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V15</dd><dt>桩内队列</dt><dd>无</dd><dt>累计电量</dt><dd>90.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn ghost">查看调度</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>F3 · 快充</h3><span class="tag ok"><span class="dot ok"></span>工作中</span></div>
+      <dl class="meta"><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V19</dd><dt>桩内队列</dt><dd>无</dd><dt>累计电量</dt><dd>105.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn ghost">查看调度</button></div>
+    </div>
+    <div class="pile-card fault">
+      <div class="head"><h3>T1 · 慢充</h3><span class="tag warn"><span class="dot warn"></span>故障</span></div>
+      <dl class="meta"><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>45.00 度</dd></dl>
+      <div class="actions"><button class="btn">故障恢复</button><button class="btn ghost">查看调度</button></div>
+    </div>
+    <div class="pile-card">
+      <div class="head"><h3>T2 · 慢充</h3><span class="tag ok"><span class="dot ok"></span>工作中</span></div>
+      <dl class="meta"><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>V12</dd><dt>桩内队列</dt><dd>V13、V17</dd><dt>累计电量</dt><dd>42.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">优先级（默认）</button><button class="btn">时间顺序</button><button class="btn warn">上报故障</button></div>
+    </div>
+  </div>
+
+  <!-- Waiting + details -->
+  <div class="two-col">
+    <div class="wait-card">
+      <h3>等候区 · 慢充</h3>
+      <div class="wait-item"><div class="qno">T7</div><div><div class="vehicle">V10</div><div class="desc">请求 10 度 · 等待叫号</div></div></div>
+      <div class="wait-item"><div class="qno">T10</div><div><div class="vehicle">V16</div><div class="desc">请求 5 度 · 等待叫号</div></div></div>
+      <div class="wait-foot">容量 2 / 10</div>
+    </div>
+
+    <div class="table-card">
+      <h3>详单查询 <span class="tag info">20 条</span></h3>
+      <table class="detail">
+        <thead><tr><th>车号</th><th>桩</th><th>起 → 止</th><th class="num">电量</th><th class="num">总费用</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr class="interrupt"><td>V6</td><td>T1</td><td>10:00 → 10:30</td><td class="num">5.00</td><td class="num">9.00</td><td class="status">已中断</td></tr>
+          <tr class="complete"><td>V14</td><td>F3</td><td>08:10 → 10:40</td><td class="num">75.00</td><td class="num">118.50</td><td class="status">已完成</td></tr>
+          <tr class="complete"><td>V8</td><td>F2</td><td>07:00 → 10:00</td><td class="num">90.00</td><td class="num">135.00</td><td class="status">已完成</td></tr>
+          <tr class="complete"><td>V1</td><td>T1</td><td>06:00 → 10:00</td><td class="num">40.00</td><td class="num">57.00</td><td class="status">已完成</td></tr>
+          <tr class="complete"><td>V3</td><td>F1</td><td>06:10 → 08:10</td><td class="num">60.00</td><td class="num">82.50</td><td class="status">已完成</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">方案 A · 静谧莫兰迪 · 米白 + 雾霭蓝 + 青瓷蓝 + 沙橙 · 12px 圆角 · 阴影 6px 0.08</div>
+</main>
+</body>
+</html>

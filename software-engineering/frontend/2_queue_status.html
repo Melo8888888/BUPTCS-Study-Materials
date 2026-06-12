@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>队列与充电状态 - 智能充电桩调度计费系统</title>
+<link rel="stylesheet" href="common.css">
+<script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+<style>
+.q-hero {
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 18px;
+    margin-bottom: 18px;
+    padding: 16px 20px;
+    align-items: stretch;
+}
+.q-hero h2 { margin: 0 0 6px; font-size: 22px; font-weight: 700; letter-spacing: -0.022em; }
+.q-hero .sub { color: var(--muted); font-size: 13px; }
+.q-hero .stage {
+    height: 180px;
+    border-radius: 14px;
+    overflow: hidden;
+    position: relative;
+    background: radial-gradient(ellipse at center 75%, rgba(135,167,179,0.20) 0%, transparent 65%);
+}
+.q-hero .stage model-viewer { width: 100%; height: 100%; background: transparent; --poster-color: transparent; }
+.q-hero .credit { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11px; color: var(--subtle); margin-top: 8px; }
+.q-hero .credit b { color: var(--celadon-deep); font-weight: 600; }
+@media (max-width: 880px) { .q-hero { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<nav class="nav">
+    <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统</div>
+    <div class="menu">
+        <a href="1_charge_request.html">充电申请</a>
+        <a href="#" class="active">队列与充电</a>
+        <a href="3_my_bills.html">我的账单</a>
+    </div>
+    <div class="user"><div class="avatar">车</div><span id="navVehicle">车辆端</span></div>
+</nav>
+
+<main class="container">
+    <h1 class="page-title">队列与充电状态</h1>
+
+    <section class="q-hero card">
+        <div>
+            <h2>你正在队列中</h2>
+            <div class="sub">系统会自动按"最短完成时长"把你调度到合适的充电桩。下方支持修改 / 取消 / 结束充电。WebSocket 推送已开启，状态变化实时刷新。</div>
+            <div class="credit">KhronosGroup <b>ToyCar</b> · 侧视图</div>
+        </div>
+        <div class="stage">
+            <model-viewer
+                src="https://cdn.jsdelivr.net/gh/KhronosGroup/glTF-Sample-Models@master/2.0/ToyCar/glTF-Binary/ToyCar.glb"
+                alt="队列中的车"
+                camera-orbit="-90deg 80deg auto"
+                field-of-view="32deg"
+                auto-rotate auto-rotate-delay="0" rotation-per-second="14deg"
+                exposure="1.20"
+                shadow-intensity="0.9"
+                environment-image="neutral"
+                interaction-prompt="none"
+                disable-zoom>
+            </model-viewer>
+        </div>
+    </section>
+
+    <section class="card">
+        <div class="card-title">
+            <span>车辆查询</span>
+            <span class="tag tag-info" id="statusHint">读取真实后端状态</span>
+        </div>
+        <div class="form-row">
+            <label for="vehicleId">车辆编号</label>
+            <div class="form-ctl btn-group">
+                <input id="vehicleId" class="input" style="max-width:260px;" value="V100">
+                <button class="btn btn-primary" id="loadBtn">刷新状态</button>
+            </div>
+        </div>
+    </section>
+
+    <div class="queue-display">
+        <div class="queue-num" id="queueNo">-</div>
+        <div class="queue-desc" id="queueDesc">请输入车辆编号并刷新。</div>
+    </div>
+
+    <div class="info-grid">
+        <div class="info-card"><div class="label">充电模式</div><div class="value" id="mode">-</div></div>
+        <div class="info-card"><div class="label">请求电量</div><div class="value" id="amount">-<span class="unit">度</span></div></div>
+        <div class="info-card"><div class="label">前方车辆</div><div class="value" id="queueAhead">-<span class="unit">辆</span></div></div>
+        <div class="info-card"><div class="label">所在充电桩</div><div class="value" id="pileId">-</div></div>
+    </div>
+
+    <section class="card">
+        <div class="card-title">
+            <span>请求操作</span>
+            <span class="tag tag-info">后端会校验当前状态是否允许操作</span>
+        </div>
+        <div class="form-row">
+            <label>修改参数</label>
+            <div class="form-ctl btn-group">
+                <select id="changeMode" class="select" style="max-width:140px;">
+                    <option value="F">快充</option>
+                    <option value="T">慢充</option>
+                </select>
+                <input id="changeAmount" class="input" type="number" min="0.1" step="0.1" value="20" style="max-width:160px;">
+                <button class="btn btn-primary" id="changeBtn">修改请求</button>
+                <button class="btn btn-danger" id="cancelBtn">取消充电</button>
+                <button class="btn btn-warning" id="endBtn">结束充电</button>
+            </div>
+        </div>
+        <div id="message" class="tag tag-info" style="display:none;"></div>
+    </section>
+
+    <section class="card">
+        <div class="card-title"><span>充电桩实时状态</span></div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>充电桩</th><th>类型</th><th>状态</th><th>当前车辆</th><th>桩内队列</th><th>功率</th>
+                </tr>
+            </thead>
+            <tbody id="pileRows"></tbody>
+        </table>
+    </section>
+
+    <section class="card" id="chargingPanel" style="display:none;background:linear-gradient(135deg,#f8fbff 0%,#eef7ff 100%);">
+        <div class="card-title"><span>实时充电</span></div>
+        <div class="info-grid" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+            <div class="info-card"><div class="label">所在桩</div><div class="value" id="chargingPile">-</div></div>
+            <div class="info-card"><div class="label">已充电量</div><div class="value" id="chargedKwh">-<span class="unit">度</span></div></div>
+            <div class="info-card"><div class="label">状态</div><div class="value" id="chargingStatus" style="font-size:20px;">-</div></div>
+            <div class="info-card"><div class="label">下一步</div><div class="value" style="font-size:18px;">结束后出详单</div></div>
+        </div>
+        <div class="progress"><div class="progress-bar" id="chargingProgress" style="width:0%"></div></div>
+    </section>
+</main>
+
+<script src="common-auth.js"></script>
+<script>
+if (!EVAuth.ensureAuthOrRedirect()) { throw new Error("auth required"); }
+const API_BASE = EVAuth.apiBase();
+const $ = (id) => document.getElementById(id);
+
+function savedVehicle() {
+    return EVAuth.currentAuth().vehicleId || "V100";
+}
+
+function setMessage(text, kind = "info") {
+    const box = $("message");
+    box.style.display = "inline-flex";
+    box.className = `tag tag-${kind}`;
+    box.textContent = text;
+}
+
+function modeText(mode) {
+    return mode === "FAST" || mode === "F" ? "快充" : mode === "SLOW" || mode === "T" ? "慢充" : "-";
+}
+
+function statusText(status) {
+    const map = {
+        WAITING_AREA: "等候区等待",
+        REDISPATCHING: "故障重调度",
+        PILE_QUEUE: "桩内排队",
+        CHARGING: "正在充电",
+        COMPLETED: "已完成",
+        CANCELLED: "已取消",
+        INTERRUPTED: "故障中断",
+        PAID: "已支付"
+    };
+    return map[status] || status || "-";
+}
+
+function latestRequest(status) {
+    if (status.activeRequest) return status.activeRequest;
+    return [...(status.requests || [])].sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))[0];
+}
+
+async function loadStatus() {
+    const vehicleId = $("vehicleId").value.trim();
+    localStorage.setItem("ev.vehicleId", vehicleId);
+    $("navVehicle").textContent = `车辆 ${vehicleId}`;
+    try {
+        const [vehicle, snapshot] = await Promise.all([
+            api(`/api/vehicles/${encodeURIComponent(vehicleId)}/status`),
+            api("/api/station/overview")
+        ]);
+        renderVehicle(vehicle);
+        renderPiles(snapshot.piles || []);
+        $("statusHint").textContent = `系统时间 ${String(snapshot.now).replace("T", " ").slice(11, 16)}`;
+    } catch (error) {
+        setMessage(error.message, "danger");
+    }
+}
+
+function renderVehicle(vehicle) {
+    const request = latestRequest(vehicle);
+    if (!request) {
+        $("queueNo").textContent = "-";
+        $("queueDesc").textContent = "当前车辆没有充电请求。";
+        ["mode", "amount", "queueAhead", "pileId"].forEach((id) => $(id).textContent = "-");
+        $("chargingPanel").style.display = "none";
+        return;
+    }
+    $("queueNo").textContent = request.queueNo || "-";
+    $("queueDesc").innerHTML = `${statusText(request.status)} · ${vehicle.message || ""}`;
+    $("mode").textContent = modeText(request.mode);
+    $("amount").innerHTML = `${Number(request.requestedKwh || 0).toFixed(1)}<span class="unit">度</span>`;
+    $("queueAhead").innerHTML = `${vehicle.queueAhead || 0}<span class="unit">辆</span>`;
+    $("pileId").textContent = request.pileId || "-";
+    $("changeMode").value = request.mode === "SLOW" ? "T" : "F";
+    $("changeAmount").value = Number(request.requestedKwh || 0);
+
+    const isCharging = request.status === "CHARGING";
+    $("chargingPanel").style.display = isCharging ? "block" : "none";
+    if (isCharging) {
+        $("chargingPile").textContent = request.pileId || "-";
+        $("chargedKwh").innerHTML = `${Number(request.chargedKwh || 0).toFixed(2)}<span class="unit">度</span>`;
+        $("chargingStatus").textContent = statusText(request.status);
+        const percent = Math.min(100, Math.round((Number(request.chargedKwh || 0) / Number(request.requestedKwh || 1)) * 100));
+        $("chargingProgress").style.width = `${percent}%`;
+    }
+}
+
+function renderPiles(piles) {
+    $("pileRows").innerHTML = piles.map((pile) => {
+        const tag = pile.status === "FAULT" ? "tag-danger" : "tag-success";
+        const status = pile.status === "FAULT" ? "故障" : "工作中";
+        return `<tr>
+            <td>${pile.id}</td>
+            <td>${modeText(pile.mode)}</td>
+            <td><span class="tag ${tag}">${status}</span></td>
+            <td>${pile.currentVehicle || "空闲"}</td>
+            <td>${(pile.queuedVehicles || []).join("、") || "无"}</td>
+            <td>${pile.powerKw} 度/小时</td>
+        </tr>`;
+    }).join("");
+}
+
+async function postVehicle(path, body) {
+    const vehicleId = $("vehicleId").value.trim();
+    const options = { method: "POST" };
+    if (body) {
+        options.headers = { "Content-Type": "application/json" };
+        options.body = JSON.stringify(body);
+    }
+    await api(`/api/vehicles/${encodeURIComponent(vehicleId)}${path}`, options);
+    await loadStatus();
+}
+
+$("vehicleId").value = savedVehicle();
+$("navVehicle").textContent = `车辆 ${$("vehicleId").value}`;
+$("loadBtn").addEventListener("click", loadStatus);
+$("changeBtn").addEventListener("click", async () => {
+    try {
+        await postVehicle("/requests/change", { mode: $("changeMode").value, amountKwh: Number($("changeAmount").value) });
+        setMessage("修改成功，排队号和调度位置已按服务器结果刷新。", "success");
+    } catch (error) { setMessage(error.message, "danger"); }
+});
+$("cancelBtn").addEventListener("click", async () => {
+    try {
+        await postVehicle("/requests/cancel");
+        setMessage("取消成功。", "success");
+    } catch (error) { setMessage(error.message, "danger"); }
+});
+$("endBtn").addEventListener("click", async () => {
+    try {
+        await postVehicle("/charging/end");
+        setMessage("已结束充电，详单已生成，可到我的账单查看。", "success");
+    } catch (error) { setMessage(error.message, "danger"); }
+});
+loadStatus();
+</script>
+</body>
+</html>

@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 B · 工程师莫兰迪</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #EEEFF1;
+  --surface: #FFFFFF;
+  --line: #DBDEE3;
+  --line-soft: #ECEEF1;
+  --text: #2A2F38;
+  --muted: #6C7480;
+  --muted-soft: #9AA1AC;
+  --slate: #3F4754;
+  --slate-dark: #2A323E;
+  --primary: #87A7B3;   /* 青瓷 */
+  --primary-dark: #65899A;
+  --highlight: #F5C842;
+  --ok: #B5C4B1; --ok-text: #5C7159;
+  --warn: #D4A29C; --warn-text: #884740;
+  --peak: #DDB892; --peak-text: #7A5A2E;
+  --shadow: 0 1px 3px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.08);
+  --radius: 6px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background: var(--bg); color: var(--text);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-feature-settings: "tnum", "kern";
+  font-size: 14px; line-height: 1.5;
+}
+.mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; font-feature-settings: "tnum"; }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  height: 56px; padding: 0 28px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--slate); color: #ECEEF1;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.logo {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.logo .bar { width: 3px; height: 18px; background: var(--highlight); }
+.menu { display: flex; gap: 2px; margin-left: 36px; flex: 1; }
+.menu a {
+  padding: 18px 14px; color: rgba(236,238,241,0.6); text-decoration: none;
+  font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 500;
+  border-bottom: 2px solid transparent;
+}
+.menu a.active { color: #fff; border-bottom-color: var(--highlight); }
+.menu a:hover { color: #fff; }
+.user { display: flex; align-items: center; gap: 10px; color: rgba(236,238,241,0.78); font-size: 12px; letter-spacing: 0.04em; }
+.user .avatar {
+  width: 28px; height: 28px; border-radius: 4px; background: rgba(255,255,255,0.1);
+  display: inline-flex; align-items: center; justify-content: center; color: #fff; font-weight: 600;
+}
+
+/* Container */
+.container { max-width: 1320px; margin: 0 auto; padding: 24px 28px 60px; }
+.page-title { margin: 0 0 4px; font-size: 22px; font-weight: 700; }
+.page-sub {
+  color: var(--muted); font-size: 12px; margin-bottom: 20px;
+  font-family: "JetBrains Mono", monospace; letter-spacing: 0.02em;
+}
+
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+.kpi {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px 18px; box-shadow: var(--shadow); position: relative;
+}
+.kpi::before {
+  content: ""; position: absolute; left: 0; top: 16px; bottom: 16px; width: 2px; background: var(--primary);
+}
+.kpi .label {
+  font-size: 10px; color: var(--muted); margin-bottom: 6px; padding-left: 10px;
+  letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600;
+}
+.kpi .value {
+  padding-left: 10px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 28px; font-weight: 600; line-height: 1.1; color: var(--text);
+}
+.kpi .unit { margin-left: 4px; font-size: 11px; color: var(--muted-soft); font-weight: 500; }
+.kpi.alert::before { background: var(--warn); }
+
+/* Section header */
+.section-head {
+  display: flex; align-items: center; gap: 10px; margin: 12px 0 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--slate);
+}
+.section-head .line { flex: 1; height: 1px; background: var(--line); }
+.section-head .badge {
+  padding: 2px 8px; background: var(--slate); color: #fff; font-size: 10px;
+  border-radius: 3px; letter-spacing: 0.06em;
+}
+
+/* Pile table */
+.pile-table-wrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); margin-bottom: 24px; }
+table.piles { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.piles th, table.piles td { padding: 14px 18px; text-align: left; }
+table.piles thead {
+  background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+table.piles thead th {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+table.piles tbody tr { border-top: 1px solid var(--line-soft); }
+table.piles tbody tr:hover { background: #F7F8FA; }
+table.piles td.num { text-align: right; }
+.pid { font-family: "JetBrains Mono", monospace; font-weight: 600; color: var(--slate); }
+.status-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px; padding: 3px 9px; border-radius: 999px;
+  background: #F3F4F6; color: var(--text); font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.status-pill .d { width: 6px; height: 6px; border-radius: 50%; }
+.status-pill.ok .d { background: var(--ok); }
+.status-pill.warn { background: rgba(212,162,156,0.15); color: var(--warn-text); }
+.status-pill.warn .d { background: var(--warn); }
+
+/* Two columns */
+.two-col { display: grid; grid-template-columns: 360px 1fr; gap: 14px; margin-bottom: 24px; }
+.panel {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: var(--shadow); overflow: hidden;
+}
+.panel h3 {
+  margin: 0; padding: 14px 18px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--slate); border-bottom: 1px solid var(--line);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.panel-body { padding: 6px 0; }
+
+/* Waiting */
+.wait-row {
+  display: grid; grid-template-columns: 50px 1fr auto; gap: 14px;
+  padding: 12px 18px; align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+}
+.wait-row:last-child { border-bottom: none; }
+.wait-row .qno {
+  font-family: "JetBrains Mono", monospace; font-weight: 700;
+  background: var(--slate); color: #fff; padding: 4px 8px; border-radius: 3px;
+  font-size: 12px; text-align: center; letter-spacing: 0.04em;
+}
+.wait-row .vid { font-weight: 600; }
+.wait-row .meta { color: var(--muted); font-size: 12px; font-family: "JetBrains Mono", monospace; }
+
+/* Detail table */
+table.detail { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.detail th, table.detail td { padding: 12px 18px; text-align: left; }
+table.detail thead {
+  background: #F7F8FA;
+}
+table.detail thead th {
+  font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--muted); font-weight: 700;
+}
+table.detail tbody tr { border-top: 1px solid var(--line-soft); }
+table.detail td.num { text-align: right; font-family: "JetBrains Mono", monospace; }
+table.detail td.pid { font-family: "JetBrains Mono", monospace; font-weight: 600; color: var(--slate); }
+
+/* Buttons */
+.btn {
+  padding: 5px 12px; border-radius: 4px; border: 1px solid var(--line);
+  background: #fff; color: var(--text); font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: "Inter", sans-serif;
+  letter-spacing: 0.04em;
+}
+.btn:hover { border-color: var(--slate); }
+.btn.primary { background: var(--slate); color: #fff; border-color: var(--slate); }
+.btn.primary:hover { background: var(--slate-dark); }
+.btn.warn { background: #fff; color: var(--warn-text); border-color: rgba(212,162,156,0.6); }
+.btn.warn:hover { background: rgba(212,162,156,0.08); }
+
+.foot { margin-top: 18px; padding: 12px 18px; font-size: 11px; color: var(--muted); border: 1px dashed var(--line); border-radius: 4px; font-family: "JetBrains Mono", monospace; }
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo"><span class="bar"></span>EV-CHARGE · OPS</div>
+  <div class="menu">
+    <a href="#">PILES</a>
+    <a href="#" class="active">QUEUE</a>
+    <a href="#">REPORTS</a>
+  </div>
+  <div class="user"><span class="avatar">X</span>ADMIN / xugong</div>
+</nav>
+
+<main class="container">
+  <h1 class="page-title">Queue Console</h1>
+  <div class="page-sub">2026-05-12 10:50  ·  WS connected  ·  events 32/32  ·  策略 PRIORITY</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">Sessions</div><div class="value">20<span class="unit">次</span></div></div>
+    <div class="kpi"><div class="label">Total kWh</div><div class="value">522.50<span class="unit">度</span></div></div>
+    <div class="kpi"><div class="label">Revenue</div><div class="value">819.25<span class="unit">元</span></div></div>
+    <div class="kpi alert"><div class="label">Fault piles</div><div class="value">2<span class="unit">个</span></div></div>
+  </div>
+
+  <!-- Pile table -->
+  <div class="section-head"><span>Pile Status</span><span class="line"></span><span class="badge">5 piles / N=10 / M=3</span></div>
+  <div class="pile-table-wrap">
+    <table class="piles">
+      <thead><tr><th>Pile</th><th>Mode</th><th>Status</th><th>Current</th><th>Queue</th><th class="num">kW</th><th class="num">Total kWh</th><th class="num">Revenue</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td class="pid">F1</td><td>FAST</td><td><span class="status-pill warn"><span class="d"></span>FAULT</span></td><td>—</td><td>—</td><td class="num mono">30.0</td><td class="num mono">122.50</td><td class="num mono">180.75</td><td><button class="btn">Recover</button></td></tr>
+        <tr><td class="pid">F2</td><td>FAST</td><td><span class="status-pill ok"><span class="d"></span>WORKING</span></td><td class="pid">V15</td><td>—</td><td class="num mono">30.0</td><td class="num mono">90.00</td><td class="num mono">135.00</td><td><button class="btn warn">Fault</button></td></tr>
+        <tr><td class="pid">F3</td><td>FAST</td><td><span class="status-pill ok"><span class="d"></span>WORKING</span></td><td class="pid">V19</td><td>—</td><td class="num mono">30.0</td><td class="num mono">105.00</td><td class="num mono">163.50</td><td><button class="btn warn">Fault</button></td></tr>
+        <tr><td class="pid">T1</td><td>SLOW</td><td><span class="status-pill warn"><span class="d"></span>FAULT</span></td><td>—</td><td>—</td><td class="num mono">10.0</td><td class="num mono">45.00</td><td class="num mono">66.00</td><td><button class="btn">Recover</button></td></tr>
+        <tr><td class="pid">T2</td><td>SLOW</td><td><span class="status-pill ok"><span class="d"></span>WORKING</span></td><td class="pid">V12</td><td><span class="mono">V13 V17</span></td><td class="num mono">10.0</td><td class="num mono">42.50</td><td class="num mono">62.50</td><td><button class="btn primary">PRIORITY</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Waiting + details -->
+  <div class="two-col">
+    <div class="panel">
+      <h3>Waiting · Slow <span class="mono">2/10</span></h3>
+      <div class="panel-body">
+        <div class="wait-row"><div class="qno">T07</div><div><div class="vid">V10</div><div class="meta">request 10 kWh</div></div><div class="mono" style="color: var(--muted); font-size: 12px;">queued</div></div>
+        <div class="wait-row"><div class="qno">T10</div><div><div class="vid">V16</div><div class="meta">request 5 kWh</div></div><div class="mono" style="color: var(--muted); font-size: 12px;">queued</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Bills <span class="mono">20 records</span></h3>
+      <table class="detail">
+        <thead><tr><th>Vehicle</th><th>Pile</th><th>From → To</th><th class="num">kWh</th><th class="num">Fee</th><th class="num">Service</th><th class="num">Total</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="pid">V6</td><td class="pid">T1</td><td class="mono">10:00 → 10:30</td><td class="num">5.00</td><td class="num">5.00</td><td class="num">4.00</td><td class="num">9.00</td><td><span class="status-pill warn"><span class="d"></span>INTERRUPTED</span></td></tr>
+          <tr><td class="pid">V14</td><td class="pid">F3</td><td class="mono">08:10 → 10:40</td><td class="num">75.00</td><td class="num">58.50</td><td class="num">60.00</td><td class="num">118.50</td><td><span class="status-pill ok"><span class="d"></span>COMPLETED</span></td></tr>
+          <tr><td class="pid">V8</td><td class="pid">F2</td><td class="mono">07:00 → 10:00</td><td class="num">90.00</td><td class="num">63.00</td><td class="num">72.00</td><td class="num">135.00</td><td><span class="status-pill ok"><span class="d"></span>COMPLETED</span></td></tr>
+          <tr><td class="pid">V1</td><td class="pid">T1</td><td class="mono">06:00 → 10:00</td><td class="num">40.00</td><td class="num">25.00</td><td class="num">32.00</td><td class="num">57.00</td><td><span class="status-pill ok"><span class="d"></span>COMPLETED</span></td></tr>
+          <tr><td class="pid">V3</td><td class="pid">F1</td><td class="mono">06:10 → 08:10</td><td class="num">60.00</td><td class="num">34.50</td><td class="num">48.00</td><td class="num">82.50</td><td><span class="status-pill ok"><span class="d"></span>COMPLETED</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">// SCHEME B · slate morandi · #3F4754 / #87A7B3 / #F5C842 · 6px radius · JetBrains Mono numerics</div>
+</main>
+</body>
+</html>

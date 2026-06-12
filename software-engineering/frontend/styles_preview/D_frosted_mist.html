@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 D · 玻璃晨雾</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&family=Noto+Sans+SC:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-1: #DDE3EC;
+  --bg-2: #FAF7F0;
+  --bg-3: #F0E8DD;
+  --ink: #2E2E2E;
+  --ink-soft: #4A4F5A;
+  --muted: rgba(46,46,46,0.55);
+  --primary: #87A7B3;
+  --primary-dark: #6E8F9D;
+  --green: #B5C4B1;
+  --green-text: #5E7A5A;
+  --rust: #D4A29C;
+  --rust-text: #884740;
+  --gold: #DDB892;
+  --highlight: #F5C842;
+  --glass-bg: rgba(255,255,255,0.55);
+  --glass-edge: rgba(255,255,255,0.55);
+  --glass-shadow: 0 1px 0 rgba(255,255,255,0.7) inset, 0 24px 60px -20px rgba(96,108,134,0.30);
+  --radius: 20px;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background:
+    radial-gradient(circle at 15% 5%, var(--bg-1) 0%, transparent 45%),
+    radial-gradient(circle at 95% 90%, var(--bg-3) 0%, transparent 50%),
+    var(--bg-2);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: "Inter", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px; line-height: 1.5;
+  font-feature-settings: "tnum";
+  min-height: 100vh;
+}
+
+/* Floating decoration blobs */
+.blob {
+  position: fixed; z-index: 0; pointer-events: none;
+  border-radius: 50%; filter: blur(80px); opacity: 0.6;
+}
+.blob.b1 { top: -120px; right: 10%; width: 380px; height: 380px; background: #C7D6E0; }
+.blob.b2 { bottom: -120px; left: 5%; width: 320px; height: 320px; background: #EDD9B8; }
+.blob.b3 { top: 35%; right: 30%; width: 220px; height: 220px; background: rgba(212,162,156,0.35); }
+
+/* Nav */
+.nav {
+  position: sticky; top: 0; z-index: 30;
+  height: 64px; padding: 0 32px;
+  display: flex; align-items: center; justify-content: space-between;
+  background: rgba(255,255,255,0.70);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  border-bottom: 1px solid rgba(255,255,255,0.6);
+}
+.logo { display: flex; align-items: center; gap: 12px; font-size: 16px; font-weight: 700; }
+.logo .icon {
+  width: 34px; height: 34px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--green) 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 800; letter-spacing: 0.04em;
+  box-shadow: 0 6px 18px rgba(110,143,157,0.32), inset 0 1px 0 rgba(255,255,255,0.6);
+}
+.menu { display: flex; gap: 4px; margin-left: 32px; flex: 1; }
+.menu a {
+  padding: 22px 16px; color: var(--muted); text-decoration: none;
+  font-size: 14px; font-weight: 600; border-radius: 12px;
+  position: relative;
+}
+.menu a.active { color: var(--ink); }
+.menu a.active::after {
+  content: ""; position: absolute; bottom: 0; left: 50%; transform: translateX(-50%);
+  width: 24px; height: 3px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--green));
+}
+.menu a:hover { color: var(--ink); }
+.user { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.user .avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: rgba(255,255,255,0.7);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-edge);
+  display: inline-flex; align-items: center; justify-content: center; font-weight: 700;
+}
+
+/* Container */
+.container { max-width: 1280px; margin: 0 auto; padding: 36px 32px 80px; position: relative; z-index: 1; }
+.page-title {
+  margin: 0 0 6px; font-size: 32px; font-weight: 800; letter-spacing: -0.02em;
+}
+.page-sub { color: var(--muted); font-size: 13px; margin-bottom: 32px; }
+
+/* Glass card base */
+.glass {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-edge);
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+}
+
+/* KPI */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 32px; }
+.kpi { padding: 22px 24px; position: relative; overflow: hidden; }
+.kpi .label {
+  font-size: 12px; color: var(--muted); margin-bottom: 10px;
+  font-weight: 600; letter-spacing: 0.06em;
+}
+.kpi .value {
+  font-size: 38px; font-weight: 800; line-height: 1.05; letter-spacing: -0.02em;
+  display: flex; align-items: baseline; gap: 6px;
+}
+.kpi .value .unit { font-size: 13px; font-weight: 400; color: var(--muted); }
+.kpi .pulse {
+  position: absolute; top: 22px; right: 22px;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--green) 100%);
+  opacity: 0.18;
+}
+.kpi.peak .pulse { background: linear-gradient(135deg, var(--gold) 0%, var(--highlight) 100%); opacity: 0.32; }
+.kpi.alert .pulse { background: linear-gradient(135deg, var(--rust) 0%, var(--gold) 100%); opacity: 0.28; }
+
+/* Section title */
+.section-title {
+  font-size: 18px; font-weight: 700; margin: 6px 0 16px;
+  display: flex; align-items: center; gap: 10px;
+}
+.section-title .extra {
+  font-size: 12px; color: var(--muted); font-weight: 500; margin-left: auto;
+}
+
+/* Pile grid */
+.pile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 32px; }
+.pile-card { padding: 22px 24px; transition: transform 0.25s; }
+.pile-card:hover { transform: translateY(-2px); }
+.pile-card .head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.pile-card h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 999px;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+}
+.pill .d { width: 7px; height: 7px; border-radius: 50%; }
+.pill.ok { background: rgba(181,196,177,0.4); color: var(--green-text); }
+.pill.ok .d { background: var(--green-text); box-shadow: 0 0 8px var(--green); }
+.pill.warn { background: rgba(212,162,156,0.4); color: var(--rust-text); }
+.pill.warn .d { background: var(--rust-text); box-shadow: 0 0 8px var(--rust); }
+.pile-card dl { margin: 0; display: grid; grid-template-columns: 84px 1fr; gap: 8px 16px; font-size: 13px; }
+.pile-card dl dt { color: var(--muted); font-weight: 500; }
+.pile-card dl dd { margin: 0; font-weight: 700; }
+.pile-card .actions { margin-top: 18px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Buttons */
+.btn {
+  padding: 7px 16px; border-radius: 999px; border: 1px solid var(--glass-edge);
+  background: rgba(255,255,255,0.5); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: var(--ink); font-size: 13px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s;
+}
+.btn:hover { background: rgba(255,255,255,0.8); transform: translateY(-1px); }
+.btn.primary {
+  background: linear-gradient(135deg, var(--primary), var(--green));
+  border-color: transparent; color: #fff;
+  box-shadow: 0 8px 22px -8px rgba(135,167,179,0.5);
+}
+.btn.primary:hover { box-shadow: 0 10px 28px -8px rgba(135,167,179,0.7); }
+.btn.warn {
+  background: linear-gradient(135deg, var(--rust), var(--gold)); color: #fff;
+  border-color: transparent;
+  box-shadow: 0 8px 22px -8px rgba(212,162,156,0.5);
+}
+
+/* Two col */
+.two-col { display: grid; grid-template-columns: 380px 1fr; gap: 16px; margin-bottom: 32px; }
+.panel { padding: 0; overflow: hidden; }
+.panel .panel-head {
+  padding: 18px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+}
+.panel .panel-head h3 { margin: 0; font-size: 16px; font-weight: 700; }
+.tag-count {
+  padding: 3px 10px; border-radius: 999px;
+  background: rgba(135,167,179,0.18); color: var(--primary-dark);
+  font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+}
+
+.wait-row {
+  display: grid; grid-template-columns: 56px 1fr; gap: 16px;
+  padding: 16px 22px; align-items: center;
+  border-bottom: 1px solid rgba(255,255,255,0.4);
+}
+.wait-row:last-child { border-bottom: none; }
+.wait-row .qno {
+  width: 56px; height: 56px; border-radius: 18px;
+  background: linear-gradient(135deg, rgba(135,167,179,0.3), rgba(181,196,177,0.3));
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; color: var(--primary-dark); font-size: 13px;
+  border: 1px solid rgba(255,255,255,0.5);
+}
+.wait-row .vid { font-weight: 700; font-size: 16px; }
+.wait-row .desc { color: var(--muted); font-size: 12px; }
+
+/* Detail table — implementing on solid surface to keep dense data readable */
+.panel.table-panel { background: rgba(255,255,255,0.85); }
+table.detail { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.detail th, table.detail td { padding: 14px 22px; text-align: left; }
+table.detail thead th {
+  font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.06em;
+  border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+table.detail tbody tr { border-bottom: 1px solid rgba(0,0,0,0.04); }
+table.detail tbody tr:last-child { border-bottom: none; }
+table.detail td.num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+/* Foot */
+.foot {
+  margin-top: 24px; padding: 16px 22px;
+  background: rgba(255,255,255,0.4);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-edge);
+  border-radius: 14px;
+  font-size: 12px; color: var(--muted); text-align: center;
+}
+
+@media (max-width: 980px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .pile-grid { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<span class="blob b1"></span>
+<span class="blob b2"></span>
+<span class="blob b3"></span>
+
+<nav class="nav">
+  <div class="logo"><span class="icon">EV</span>智能充电桩调度计费系统</div>
+  <div class="menu">
+    <a href="#">充电桩监控</a>
+    <a href="#" class="active">等候队列</a>
+    <a href="#">报表管理</a>
+  </div>
+  <div class="user"><span class="avatar">徐</span>管理员 · 徐工</div>
+</nav>
+
+<main class="container">
+  <h1 class="page-title">队列总览</h1>
+  <div class="page-sub">系统时间 2026-05-12 10:50 · WebSocket 推送中 · 32/32 验收事件已完成</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi glass">
+      <div class="pulse"></div>
+      <div class="label">累计充电次数</div>
+      <div class="value">20<span class="unit">次</span></div>
+    </div>
+    <div class="kpi glass">
+      <div class="pulse"></div>
+      <div class="label">累计电量</div>
+      <div class="value">522.50<span class="unit">度</span></div>
+    </div>
+    <div class="kpi glass peak">
+      <div class="pulse"></div>
+      <div class="label">累计费用</div>
+      <div class="value">819.25<span class="unit">元</span></div>
+    </div>
+    <div class="kpi glass alert">
+      <div class="pulse"></div>
+      <div class="label">故障桩</div>
+      <div class="value">2<span class="unit">个</span></div>
+    </div>
+  </div>
+
+  <!-- Pile grid -->
+  <div class="section-title">充电桩实时监控 <span class="extra">3 快充 / 2 慢充 · N=10 · M=3</span></div>
+  <div class="pile-grid">
+    <div class="pile-card glass">
+      <div class="head"><h3>F1 · 快充</h3><span class="pill warn"><span class="d"></span>故障</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>122.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">故障恢复</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>F2 · 快充</h3><span class="pill ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V15</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>90.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn">查看调度</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>F3 · 快充</h3><span class="pill ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V19</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>105.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn">查看调度</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>T1 · 慢充</h3><span class="pill warn"><span class="d"></span>故障</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd>45.00 度</dd></dl>
+      <div class="actions"><button class="btn primary">故障恢复</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>T2 · 慢充</h3><span class="pill ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>V12</dd><dt>桩内队列</dt><dd>V13、V17</dd><dt>累计电量</dt><dd>42.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">优先级</button><button class="btn">时间顺序</button></div>
+    </div>
+  </div>
+
+  <!-- Waiting + details -->
+  <div class="two-col">
+    <div class="panel glass">
+      <div class="panel-head"><h3>等候区 · 慢充</h3><span class="tag-count">2 / 10</span></div>
+      <div class="wait-row"><div class="qno">T7</div><div><div class="vid">V10</div><div class="desc">请求 10 度 · 等待叫号</div></div></div>
+      <div class="wait-row"><div class="qno">T10</div><div><div class="vid">V16</div><div class="desc">请求 5 度 · 等待叫号</div></div></div>
+    </div>
+
+    <div class="panel glass table-panel">
+      <div class="panel-head"><h3>详单查询</h3><span class="tag-count">20 条</span></div>
+      <table class="detail">
+        <thead><tr><th>车号</th><th>桩</th><th>起 → 止</th><th class="num">电量</th><th class="num">总费用</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td>V6</td><td>T1</td><td>10:00 → 10:30</td><td class="num">5.00</td><td class="num">9.00</td><td><span class="pill warn"><span class="d"></span>中断</span></td></tr>
+          <tr><td>V14</td><td>F3</td><td>08:10 → 10:40</td><td class="num">75.00</td><td class="num">118.50</td><td><span class="pill ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td>V8</td><td>F2</td><td>07:00 → 10:00</td><td class="num">90.00</td><td class="num">135.00</td><td><span class="pill ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td>V1</td><td>T1</td><td>06:00 → 10:00</td><td class="num">40.00</td><td class="num">57.00</td><td><span class="pill ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td>V3</td><td>F1</td><td>06:10 → 08:10</td><td class="num">60.00</td><td class="num">82.50</td><td><span class="pill ok"><span class="d"></span>完成</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">方案 D · 玻璃晨雾 · 雾蓝→米白→焦糖渐变 + rgba(255,255,255,0.55) + blur 20 · 18px 圆角 · 浅艾绿/陶土粉胶囊</div>
+</main>
+</body>
+</html>

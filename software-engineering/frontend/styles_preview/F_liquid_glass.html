@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方案 F · Apple Liquid Glass</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;590;700;800&family=Noto+Sans+SC:wght@300;400;500;590;700&family=SF+Pro+Display&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Background palette - vivid light sources for liquid effect */
+  --light-rose:  #FFC7D2;
+  --light-sky:   #B0DCFB;
+  --light-peach: #FFD9A8;
+  --light-lilac: #C8C2EE;
+  --light-mint:  #B8E7CC;
+
+  --paper: #F5F4F7;
+
+  --ink: #1B1D22;
+  --ink-2: #2C3038;
+  --text-soft: rgba(27,29,34,0.66);
+  --muted: rgba(27,29,34,0.52);
+  --muted-dim: rgba(27,29,34,0.34);
+
+  /* Accents tuned for glass overlay */
+  --accent-blue:   #0A84FF;       /* iOS system blue */
+  --accent-cyan:   #5AC8FA;
+  --accent-green:  #34C759;
+  --accent-amber:  #FF9F0A;
+  --accent-red:    #FF3B30;
+  --accent-violet: #BF5AF2;
+
+  /* Glass material */
+  --glass-bg:        rgba(255,255,255,0.36);
+  --glass-bg-strong: rgba(255,255,255,0.52);
+  --glass-border:    rgba(255,255,255,0.55);
+  --glass-edge:      rgba(255,255,255,0.18);
+  --specular:        rgba(255,255,255,0.95);
+  --glass-shadow:
+    0 1px 1.5px rgba(255,255,255,0.7) inset,
+    0 -1px 1.5px rgba(255,255,255,0.06) inset,
+    0 10px 32px -10px rgba(20,30,80,0.22),
+    0 1px 2px rgba(20,30,80,0.04);
+
+  --radius: 24px;
+  --radius-sm: 14px;
+  --pill: 999px;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; }
+body {
+  background:
+    radial-gradient(ellipse 60% 50% at 18% 12%, var(--light-rose)   0%, transparent 60%),
+    radial-gradient(ellipse 55% 45% at 82% 22%, var(--light-sky)    0%, transparent 60%),
+    radial-gradient(ellipse 50% 40% at 50% 90%, var(--light-peach)  0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 10% 80%, var(--light-lilac)  0%, transparent 55%),
+    radial-gradient(ellipse 50% 40% at 95% 85%, var(--light-mint)   0%, transparent 55%),
+    var(--paper);
+  background-attachment: fixed;
+  min-height: 100vh;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro", "Inter", "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+  font-size: 14px; line-height: 1.45;
+  font-feature-settings: "tnum", "kern", "ss01";
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+/* Subtle film grain — Apple Liquid Glass has it */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 0; pointer-events: none;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='n'><feTurbulence baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.05 0'/></filter><rect width='400' height='400' filter='url(%23n)' opacity='0.5'/></svg>");
+  mix-blend-mode: overlay; opacity: 0.55;
+}
+
+/* ===== Glass material (shared) ===== */
+.glass {
+  position: relative;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(108%);
+  backdrop-filter:        blur(40px) saturate(200%) brightness(108%);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  box-shadow: var(--glass-shadow);
+  overflow: hidden;
+}
+/* Lit border via background-clip trick */
+.glass::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  padding: 1px;
+  background:
+    linear-gradient(135deg,
+      rgba(255,255,255,0.75) 0%,
+      rgba(255,255,255,0.20) 28%,
+      rgba(255,255,255,0.04) 55%,
+      rgba(255,255,255,0.18) 78%,
+      rgba(255,255,255,0.62) 100%);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+}
+/* Top specular streak — wet shine */
+.glass::before {
+  content: ""; position: absolute; top: 1px; left: 18%; right: 18%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--specular), transparent);
+  opacity: 0.75; pointer-events: none; z-index: 1;
+}
+
+/* ===== Nav ===== */
+.nav {
+  position: sticky; top: 16px; z-index: 30;
+  margin: 16px 24px 0; padding: 0 22px;
+  height: 56px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-radius: var(--pill);
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(40px) saturate(200%);
+  backdrop-filter:        blur(40px) saturate(200%);
+  box-shadow:
+    0 1.5px 1px rgba(255,255,255,0.85) inset,
+    0 -1px 1px rgba(255,255,255,0.06) inset,
+    0 14px 40px -10px rgba(20,30,80,0.22),
+    0 1px 2px rgba(20,30,80,0.05);
+  border: 1px solid transparent;
+  background-clip: padding-box;
+}
+.logo { display: flex; align-items: center; gap: 12px; font-size: 15px; font-weight: 590; letter-spacing: -0.01em; }
+.logo .badge {
+  width: 30px; height: 30px; border-radius: 9px;
+  background: linear-gradient(150deg, var(--accent-blue) 0%, var(--accent-violet) 100%);
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 800; font-size: 11px; letter-spacing: 0.04em;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.5),
+    0 4px 12px -2px rgba(10,132,255,0.5);
+}
+.menu { display: flex; gap: 4px; flex: 1; margin-left: 28px; }
+.menu a {
+  padding: 8px 14px; border-radius: var(--pill);
+  color: var(--text-soft); text-decoration: none;
+  font-size: 13px; font-weight: 500;
+  transition: all 0.2s;
+}
+.menu a:hover { color: var(--ink); background: rgba(255,255,255,0.4); }
+.menu a.active {
+  color: var(--ink);
+  background: rgba(255,255,255,0.62);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), inset 0 -1px 1px rgba(0,0,0,0.04);
+  font-weight: 590;
+}
+.user { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-soft); }
+.user .avatar {
+  width: 30px; height: 30px; border-radius: 50%;
+  background: linear-gradient(145deg, var(--accent-cyan), var(--accent-blue));
+  color: #fff; display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 12px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.5);
+}
+
+/* ===== Container ===== */
+.container { max-width: 1320px; margin: 32px auto 0; padding: 0 32px 80px; position: relative; z-index: 1; }
+.page-title {
+  margin: 0 0 6px; font-size: 34px; font-weight: 700; letter-spacing: -0.022em; line-height: 1.05;
+}
+.page-sub { color: var(--text-soft); font-size: 14px; margin-bottom: 28px; letter-spacing: -0.01em; }
+
+/* ===== KPI ===== */
+.kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
+.kpi {
+  padding: 20px 22px 22px; min-height: 110px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.kpi .label { color: var(--muted); font-size: 12px; font-weight: 590; letter-spacing: -0.005em; }
+.kpi .value {
+  font-size: 36px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.05;
+  display: flex; align-items: baseline; gap: 6px;
+  font-feature-settings: "tnum", "ss01";
+}
+.kpi .value .unit { font-size: 13px; color: var(--muted); font-weight: 500; }
+.kpi.peak .value { color: var(--accent-amber); }
+.kpi.alert .value { color: var(--accent-red); }
+.kpi.ok .value { color: var(--accent-green); }
+/* color drip dot */
+.kpi .drip {
+  position: absolute; top: 16px; right: 16px; z-index: 1;
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent-green);
+  box-shadow: 0 0 0 4px rgba(52,199,89,0.18);
+}
+.kpi.peak .drip { background: var(--accent-amber); box-shadow: 0 0 0 4px rgba(255,159,10,0.20); }
+.kpi.alert .drip { background: var(--accent-red); box-shadow: 0 0 0 4px rgba(255,59,48,0.20); }
+
+/* ===== Section title ===== */
+.section-title {
+  margin: 12px 0 14px; display: flex; align-items: baseline; gap: 12px;
+  font-size: 17px; font-weight: 700; letter-spacing: -0.015em;
+}
+.section-title .right { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 500; }
+.section-title .chip {
+  padding: 2px 10px; border-radius: var(--pill);
+  background: rgba(255,255,255,0.5);
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  font-size: 11px; font-weight: 600; color: var(--text-soft);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7), inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+
+/* ===== Pile grid ===== */
+.pile-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+.pile-card { padding: 20px 22px; transition: transform 0.2s; }
+.pile-card:hover { transform: translateY(-1.5px); }
+.pile-card .head {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+}
+.pile-card h3 {
+  margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.02em;
+}
+.pile-card h3 .sub { color: var(--muted); font-weight: 500; font-size: 12px; margin-left: 6px; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 10px; border-radius: var(--pill);
+  font-size: 11px; font-weight: 590; letter-spacing: -0.005em;
+  background: rgba(255,255,255,0.55);
+  -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+.badge .d { width: 7px; height: 7px; border-radius: 50%; }
+.badge.ok { color: var(--accent-green); }
+.badge.ok .d { background: var(--accent-green); box-shadow: 0 0 8px var(--accent-green); }
+.badge.warn { color: var(--accent-red); }
+.badge.warn .d { background: var(--accent-red); box-shadow: 0 0 8px var(--accent-red); }
+
+.pile-card dl {
+  margin: 0; display: grid; grid-template-columns: 80px 1fr; gap: 8px 14px; font-size: 13px;
+}
+.pile-card dl dt { color: var(--muted); font-weight: 500; }
+.pile-card dl dd { margin: 0; font-weight: 590; color: var(--ink); }
+.pile-card dl dd.num { font-feature-settings: "tnum"; }
+
+.pile-card .actions { margin-top: 16px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ===== Buttons (capsule liquid glass) ===== */
+.btn {
+  padding: 7px 16px; border-radius: var(--pill);
+  border: 1px solid transparent;
+  background: rgba(255,255,255,0.55);
+  -webkit-backdrop-filter: blur(20px) saturate(180%); backdrop-filter: blur(20px) saturate(180%);
+  color: var(--ink); font-size: 13px; font-weight: 590;
+  letter-spacing: -0.005em;
+  cursor: pointer; transition: all 0.18s;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.85),
+    inset 0 -1px 0 rgba(0,0,0,0.05),
+    0 4px 14px -4px rgba(20,30,80,0.10);
+}
+.btn:hover { background: rgba(255,255,255,0.75); transform: translateY(-1px); }
+.btn.primary {
+  background: linear-gradient(180deg, #34A1FF 0%, var(--accent-blue) 100%);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.45),
+    inset 0 -1px 0 rgba(0,0,0,0.10),
+    0 6px 18px -4px rgba(10,132,255,0.5);
+}
+.btn.primary:hover { box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.10), 0 8px 22px -4px rgba(10,132,255,0.65); }
+.btn.warn {
+  background: linear-gradient(180deg, #FFB347 0%, var(--accent-amber) 100%);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), inset 0 -1px 0 rgba(0,0,0,0.10), 0 6px 18px -4px rgba(255,159,10,0.45);
+}
+.btn.danger {
+  background: linear-gradient(180deg, #FF6961 0%, var(--accent-red) 100%);
+  color: #fff;
+}
+
+/* ===== Two columns ===== */
+.two-col { display: grid; grid-template-columns: 380px 1fr; gap: 14px; margin-bottom: 28px; }
+
+.panel { padding: 0; overflow: hidden; }
+.panel-head {
+  padding: 16px 22px;
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid rgba(255,255,255,0.5);
+}
+.panel-head h3 { margin: 0; font-size: 15px; font-weight: 700; letter-spacing: -0.015em; }
+.panel-head .count {
+  padding: 3px 10px; border-radius: var(--pill);
+  background: rgba(10,132,255,0.12); color: var(--accent-blue);
+  font-size: 11px; font-weight: 600;
+}
+
+/* Waiting */
+.wait-row {
+  display: grid; grid-template-columns: 56px 1fr auto; gap: 14px; align-items: center;
+  padding: 14px 22px;
+  border-bottom: 1px solid rgba(255,255,255,0.35);
+}
+.wait-row:last-child { border-bottom: none; }
+.wait-row .qno {
+  width: 52px; height: 52px; border-radius: 16px;
+  background: linear-gradient(150deg, rgba(255,255,255,0.7), rgba(255,255,255,0.3));
+  -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--accent-blue); font-weight: 700; font-size: 13px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.95),
+    inset 0 -1px 1px rgba(0,0,0,0.04),
+    0 6px 18px -6px rgba(20,30,80,0.18);
+}
+.wait-row .vid { font-weight: 700; font-size: 16px; letter-spacing: -0.015em; }
+.wait-row .desc { color: var(--text-soft); font-size: 12px; }
+.wait-row .state {
+  font-size: 11px; font-weight: 590; color: var(--accent-green);
+  padding: 3px 10px; border-radius: var(--pill);
+  background: rgba(52,199,89,0.14);
+}
+
+/* Detail table */
+table.detail { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.detail th, table.detail td { padding: 12px 22px; text-align: left; }
+table.detail thead th {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  border-bottom: 1px solid rgba(255,255,255,0.4);
+  letter-spacing: -0.005em;
+}
+table.detail tbody tr { border-bottom: 1px solid rgba(255,255,255,0.3); }
+table.detail tbody tr:last-child { border-bottom: none; }
+table.detail tbody tr:hover { background: rgba(255,255,255,0.2); }
+table.detail td.num { text-align: right; font-feature-settings: "tnum"; font-weight: 590; }
+table.detail td.vid { font-weight: 590; }
+table.detail td.pid { font-weight: 590; color: var(--accent-blue); font-family: "JetBrains Mono", ui-monospace, monospace; }
+
+/* Footer chip */
+.foot {
+  margin-top: 24px; padding: 14px 22px;
+  background: rgba(255,255,255,0.42);
+  -webkit-backdrop-filter: blur(36px) saturate(180%); backdrop-filter: blur(36px) saturate(180%);
+  border-radius: var(--radius-sm);
+  font-size: 12px; color: var(--text-soft);
+  display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85), inset 0 -1px 0 rgba(0,0,0,0.05);
+}
+
+@media (max-width: 1080px) {
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .pile-grid { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo">
+    <span class="badge">EV</span>
+    智能充电桩调度计费系统
+  </div>
+  <div class="menu">
+    <a href="#">充电桩监控</a>
+    <a href="#" class="active">等候队列</a>
+    <a href="#">报表管理</a>
+  </div>
+  <div class="user"><span class="avatar">徐</span>管理员 · 徐工</div>
+</nav>
+
+<main class="container">
+  <h1 class="page-title">队列总览</h1>
+  <div class="page-sub">系统时间 2026-05-12 10:50 · 32 / 32 验收事件已完成 · WebSocket 推送中</div>
+
+  <!-- KPI -->
+  <div class="kpi-grid">
+    <div class="kpi glass ok">
+      <span class="drip"></span>
+      <div class="label">累计充电次数</div>
+      <div class="value">20<span class="unit">次</span></div>
+    </div>
+    <div class="kpi glass">
+      <span class="drip"></span>
+      <div class="label">累计电量</div>
+      <div class="value">522.50<span class="unit">度</span></div>
+    </div>
+    <div class="kpi glass peak">
+      <span class="drip"></span>
+      <div class="label">累计费用</div>
+      <div class="value">819.25<span class="unit">元</span></div>
+    </div>
+    <div class="kpi glass alert">
+      <span class="drip"></span>
+      <div class="label">故障桩</div>
+      <div class="value">2<span class="unit">个</span></div>
+    </div>
+  </div>
+
+  <div class="section-title">充电桩实时监控
+    <span class="chip">PRIORITY 优先级</span>
+    <span class="right">3 快充 / 2 慢充 · N=10 · M=3</span>
+  </div>
+  <div class="pile-grid">
+    <div class="pile-card glass">
+      <div class="head"><h3>F1<span class="sub">· 快充</span></h3><span class="badge warn"><span class="d"></span>故障</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="num">122.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">故障恢复</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>F2<span class="sub">· 快充</span></h3><span class="badge ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V15</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="num">90.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn">查看调度</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>F3<span class="sub">· 快充</span></h3><span class="badge ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>30 度/小时</dd><dt>当前车辆</dt><dd>V19</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="num">105.00 度</dd></dl>
+      <div class="actions"><button class="btn warn">上报故障</button><button class="btn">查看调度</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>T1<span class="sub">· 慢充</span></h3><span class="badge warn"><span class="d"></span>故障</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>—</dd><dt>桩内队列</dt><dd>—</dd><dt>累计电量</dt><dd class="num">45.00 度</dd></dl>
+      <div class="actions"><button class="btn primary">故障恢复</button></div>
+    </div>
+    <div class="pile-card glass">
+      <div class="head"><h3>T2<span class="sub">· 慢充</span></h3><span class="badge ok"><span class="d"></span>工作中</span></div>
+      <dl><dt>功率</dt><dd>10 度/小时</dd><dt>当前车辆</dt><dd>V12</dd><dt>桩内队列</dt><dd>V13、V17</dd><dt>累计电量</dt><dd class="num">42.50 度</dd></dl>
+      <div class="actions"><button class="btn primary">优先级</button><button class="btn">时间顺序</button></div>
+    </div>
+  </div>
+
+  <div class="section-title">等候区 · 详单
+    <span class="right">Slow 2/10 · Fast 0/10</span>
+  </div>
+  <div class="two-col">
+    <div class="panel glass">
+      <div class="panel-head"><h3>等候区 · 慢充</h3><span class="count">2 / 10</span></div>
+      <div class="wait-row"><div class="qno">T7</div><div><div class="vid">V10</div><div class="desc">请求 10 度 · 等待叫号</div></div><span class="state">queued</span></div>
+      <div class="wait-row"><div class="qno">T10</div><div><div class="vid">V16</div><div class="desc">请求 5 度 · 等待叫号</div></div><span class="state">queued</span></div>
+    </div>
+
+    <div class="panel glass">
+      <div class="panel-head"><h3>详单查询</h3><span class="count">20 条</span></div>
+      <table class="detail">
+        <thead><tr><th>车号</th><th>桩</th><th>起 → 止</th><th class="num">电量</th><th class="num">总费用</th><th>状态</th></tr></thead>
+        <tbody>
+          <tr><td class="vid">V6</td><td class="pid">T1</td><td>10:00 → 10:30</td><td class="num">5.00</td><td class="num">9.00</td><td><span class="badge warn"><span class="d"></span>中断</span></td></tr>
+          <tr><td class="vid">V14</td><td class="pid">F3</td><td>08:10 → 10:40</td><td class="num">75.00</td><td class="num">118.50</td><td><span class="badge ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td class="vid">V8</td><td class="pid">F2</td><td>07:00 → 10:00</td><td class="num">90.00</td><td class="num">135.00</td><td><span class="badge ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td class="vid">V1</td><td class="pid">T1</td><td>06:00 → 10:00</td><td class="num">40.00</td><td class="num">57.00</td><td><span class="badge ok"><span class="d"></span>完成</span></td></tr>
+          <tr><td class="vid">V3</td><td class="pid">F1</td><td>06:10 → 08:10</td><td class="num">60.00</td><td class="num">82.50</td><td><span class="badge ok"><span class="d"></span>完成</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div>方案 F · Apple Liquid Glass · 高透明 + blur 40 saturate 200% · 镀膜边 + 顶部高光 · iOS 系统色</div>
+    <div>SF Pro Display · 24px continuous corner · 多光源径向渐变背景</div>
+  </div>
+</main>
+</body>
+</html>
